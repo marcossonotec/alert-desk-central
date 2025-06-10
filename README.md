@@ -1,317 +1,323 @@
 
-# DeskTools - Plataforma de Monitoramento de Servidores
+# DeskTools - Plataforma de Monitoramento de Servidores SaaS
 
 ## 📋 Visão Geral
 
-DeskTools é uma plataforma SaaS completa para monitoramento de servidores em tempo real, com foco especial na integração com provedores de nuvem como Hetzner Cloud. A plataforma oferece alertas automáticos, métricas detalhadas e sistema de pagamentos integrado.
+DeskTools é uma plataforma SaaS completa para monitoramento de servidores em tempo real, com sistema de alertas inteligentes e gestão multi-tenant para agências. A solução oferece monitoramento abrangente de recursos de servidor, notificações personalizáveis e painéis administrativos avançados.
 
-## 🏗️ Arquitetura e Tecnologias
+## 🚀 Funcionalidades Principais
 
-### Frontend
-- **React 18** com TypeScript
-- **Tailwind CSS** para estilização
-- **Shadcn/UI** para componentes
-- **Vite** como bundler
-- **React Query** para gerenciamento de estado
+### 🔧 Monitoramento de Servidores
+- **Monitoramento em Tempo Real**: CPU, memória, disco e rede
+- **Integração com Hetzner Cloud**: APIs nativas para coleta de métricas
+- **Status Automático**: Online, warning e offline baseado em thresholds
+- **Histórico de Métricas**: Armazenamento e visualização de dados históricos
 
-### Backend
-- **Supabase** como Backend-as-a-Service
-- **PostgreSQL** como banco de dados
-- **Row Level Security (RLS)** para segurança
-- **Edge Functions** para lógica serverless
+### 🚨 Sistema de Alertas
+- **Alertas Configuráveis**: CPU, memória, disco e status offline
+- **Múltiplos Canais**: Email e WhatsApp
+- **Thresholds Personalizáveis**: Limites específicos por servidor
+- **Histórico de Notificações**: Rastreamento completo de alertas enviados
 
-### Integrações
-- **Hetzner Cloud API** para coleta de métricas
-- **Resend** para envio de emails
-- **WhatsApp Business API** para alertas
-- **Stripe** e **MercadoPago** para pagamentos
+### 💳 Sistema de Pagamentos
+- **Integração Dupla**: Stripe e MercadoPago
+- **Planos Flexíveis**: Free, Basic, Pro e Enterprise
+- **Webhooks**: Processamento automático de pagamentos
+- **Gestão de Assinaturas**: Ativação, suspensão e cancelamento
 
-## 📊 Modelo de Negócios
+### 🏢 Multi-Tenant para Agências
+- **Gestão de Clientes**: Múltiplos clientes por agência
+- **Isolamento de Dados**: Segurança e privacidade garantidas
+- **Painéis Personalizados**: Dashboards específicos por cliente
+- **Billing Centralizado**: Faturamento unificado para agências
+
+## 🏗️ Arquitetura Técnica
+
+### Frontend (React + TypeScript)
+```
+src/
+├── components/          # Componentes reutilizáveis
+│   ├── ui/             # Componentes base (shadcn/ui)
+│   ├── admin/          # Componentes administrativos
+│   └── ServerCard.tsx  # Cartão de servidor
+├── pages/              # Páginas da aplicação
+│   ├── Dashboard.tsx   # Dashboard principal
+│   ├── Profile.tsx     # Configurações do usuário
+│   └── Admin.tsx       # Painel administrativo
+├── integrations/       # Integrações externas
+│   └── supabase/       # Cliente e tipos Supabase
+└── App.tsx            # Componente raiz
+```
+
+### Backend (Supabase Edge Functions)
+```
+supabase/functions/
+├── hetzner-monitor/    # Coleta de métricas Hetzner
+├── send-alerts/        # Envio de notificações
+├── payment-webhook/    # Processamento de pagamentos
+└── create-subscription/ # Criação de assinaturas
+```
+
+### Banco de Dados (PostgreSQL)
+```sql
+-- Principais tabelas
+profiles          # Perfis de usuários
+servidores        # Servidores monitorados
+metricas          # Dados de monitoramento
+alertas           # Configurações de alertas
+notificacoes      # Histórico de notificações
+assinaturas       # Gestão de pagamentos
+```
+
+## 🔒 Segurança e Permissões
+
+### Row Level Security (RLS)
+- **Isolamento de Dados**: Cada usuário acessa apenas seus próprios dados
+- **Políticas Granulares**: Controle específico por tabela e operação
+- **Segurança Multi-Tenant**: Isolamento garantido entre clientes
+
+### Autenticação
+- **Supabase Auth**: Sistema robusto de autenticação
+- **JWT Tokens**: Tokens seguros para APIs
+- **Refresh Tokens**: Renovação automática de sessões
+
+## 📊 Modelo de Negócio
 
 ### Planos de Assinatura
 
-#### 🆓 Gratuito
-- Até 1 servidor
-- Alertas básicos por email
-- Métricas básicas (CPU, Memória)
-- Suporte via documentação
+#### 🆓 Free Plan
+- **Preço**: Gratuito
+- **Servidores**: Até 2 servidores
+- **Métricas**: Básicas (CPU, Memória)
+- **Alertas**: Email apenas
+- **Suporte**: Comunidade
 
-#### 💼 Básico - R$ 29,90/mês
-- Até 5 servidores
-- Alertas por email e WhatsApp
-- Métricas completas
-- Suporte por email
-- Histórico de 30 dias
+#### 💎 Basic Plan - R$ 29/mês
+- **Servidores**: Até 10 servidores
+- **Métricas**: Completas + Rede
+- **Alertas**: Email + WhatsApp
+- **Histórico**: 30 dias
+- **Suporte**: Email
 
-#### 🚀 Profissional - R$ 59,90/mês
-- Até 25 servidores
-- Alertas avançados personalizáveis
-- APIs de integração
-- Suporte prioritário
-- Histórico de 90 dias
-- Relatórios avançados
+#### 🚀 Pro Plan - R$ 99/mês
+- **Servidores**: Até 50 servidores
+- **Métricas**: Avançadas + Customizadas
+- **Alertas**: Todos os canais + Webhooks
+- **Histórico**: 90 dias
+- **API Access**: Completo
+- **Suporte**: Prioritário
 
-#### 🏢 Empresarial - R$ 149,90/mês
-- Servidores ilimitados
-- Alertas em múltiplos canais
-- API completa
-- Suporte 24/7
-- Histórico de 1 ano
-- Dashboard customizado
-- Integração SSO
+#### 🏢 Enterprise Plan - R$ 299/mês
+- **Servidores**: Ilimitados
+- **Multi-Tenant**: Gestão de agências
+- **Métricas**: Personalizadas
+- **SLA**: 99.9% uptime
+- **Suporte**: 24/7 dedicado
+- **Customização**: White-label
 
-## 🗄️ Estrutura do Banco de Dados
+### Estratégia de Monetização
+1. **Freemium Model**: Captação através do plano gratuito
+2. **Usage-Based Scaling**: Upgrade baseado no número de servidores
+3. **Enterprise Sales**: Vendas diretas para grandes clientes
+4. **Partner Program**: Programa de parceiros para agências
 
-### Tabelas Principais
+## 🛠️ Configuração e Instalação
 
-#### `profiles`
-Perfis de usuários vinculados ao sistema de autenticação do Supabase.
-
-```sql
-- id (UUID) - Referência para auth.users
-- email (TEXT) - Email do usuário
-- nome_completo (TEXT) - Nome completo
-- empresa (TEXT) - Nome da empresa
-- telefone (TEXT) - Telefone para WhatsApp
-- plano_ativo (TEXT) - Plano atual
-- data_criacao (TIMESTAMPTZ)
-- data_atualizacao (TIMESTAMPTZ)
-```
-
-#### `servidores`
-Servidores cadastrados para monitoramento.
-
-```sql
-- id (UUID) - Identificador único
-- usuario_id (UUID) - Referência para profiles
-- nome (TEXT) - Nome do servidor
-- ip (TEXT) - Endereço IP
-- provedor (TEXT) - Provedor (hetzner, aws, etc.)
-- webhook_url (TEXT) - URL para receber métricas
-- api_key (TEXT) - Chave de API do provedor
-- status (TEXT) - Status atual
-- ultima_verificacao (TIMESTAMPTZ)
-```
-
-#### `metricas`
-Métricas coletadas dos servidores.
-
-```sql
-- id (UUID) - Identificador único
-- servidor_id (UUID) - Referência para servidores
-- cpu_usage (DECIMAL) - Uso de CPU (%)
-- memoria_usage (DECIMAL) - Uso de memória (%)
-- disco_usage (DECIMAL) - Uso de disco (%)
-- rede_in (BIGINT) - Tráfego de entrada (bytes)
-- rede_out (BIGINT) - Tráfego de saída (bytes)
-- uptime (TEXT) - Tempo de atividade
-- timestamp (TIMESTAMPTZ) - Momento da coleta
-```
-
-#### `alertas`
-Configuração de alertas dos usuários.
-
-```sql
-- id (UUID) - Identificador único
-- usuario_id (UUID) - Referência para profiles
-- servidor_id (UUID) - Referência para servidores
-- tipo_alerta (TEXT) - Tipo: cpu, memoria, disco, offline
-- limite_valor (DECIMAL) - Valor limite para disparo
-- canal_notificacao (TEXT[]) - Canais: email, whatsapp
-- ativo (BOOLEAN) - Se está ativo
-```
-
-#### `assinaturas`
-Assinaturas e pagamentos dos usuários.
-
-```sql
-- id (UUID) - Identificador único
-- usuario_id (UUID) - Referência para profiles
-- plano (TEXT) - Plano contratado
-- status (TEXT) - ativa, cancelada, suspensa
-- preco_mensal (DECIMAL) - Valor mensal
-- provedor_pagamento (TEXT) - stripe, mercadopago
-- subscription_id (TEXT) - ID no provedor
-- data_inicio (TIMESTAMPTZ)
-- data_fim (TIMESTAMPTZ)
-```
-
-## 🔧 APIs e Edge Functions
-
-### 1. Hetzner Monitor (`hetzner-monitor`)
-Coleta métricas dos servidores Hetzner Cloud e processa alertas.
-
-**Endpoints:**
-- `GET /` - Coleta métricas de todos os servidores
-- `POST /` - Recebe métricas via webhook
-
-**Funcionalidades:**
-- Integração com Hetzner Cloud API
-- Coleta automática de métricas
-- Processamento de alertas em tempo real
-- Armazenamento de dados históricos
-
-### 2. Sistema de Alertas (`send-alerts`)
-Envia notificações por email e WhatsApp quando limites são ultrapassados.
-
-**Canais suportados:**
-- **Email** via Resend
-- **WhatsApp** via API Business
-
-**Tipos de alerta:**
-- CPU acima do limite
-- Memória acima do limite
-- Disco acima do limite
-- Servidor offline
-
-### 3. Webhook de Pagamentos (`payment-webhook`)
-Processa webhooks de provedores de pagamento.
-
-**Provedores suportados:**
-- **Stripe** - Processamento internacional
-- **MercadoPago** - Processamento nacional
-
-**Eventos processados:**
-- Pagamento aprovado
-- Pagamento rejeitado
-- Assinatura cancelada
-
-### 4. Criação de Assinaturas (`create-subscription`)
-Cria novas assinaturas nos provedores de pagamento.
-
-**Fluxo:**
-1. Usuário seleciona plano
-2. Cria customer no provedor
-3. Gera link de pagamento
-4. Retorna URL para checkout
-
-## 🔐 Segurança
-
-### Row Level Security (RLS)
-Todas as tabelas implementam RLS para garantir que usuários só acessem seus próprios dados.
-
-### Políticas Implementadas:
-- Usuários só veem seus próprios servidores
-- Métricas são filtradas por propriedade do servidor
-- Alertas são privados por usuário
-- Edge Functions têm permissões específicas
-
-## 🚀 Implementação e Deploy
-
-### Variáveis de Ambiente Necessárias
-
-```env
-# Supabase (já configurado)
-SUPABASE_URL=https://obclzswvwjslxexskvcf.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
-# Hetzner Cloud
-HETZNER_API_KEY=seu_token_hetzner
-
-# Email (Resend)
-RESEND_API_KEY=re_sua_chave_resend
-
-# WhatsApp
-WHATSAPP_API_KEY=sua_chave_whatsapp
-WHATSAPP_API_URL=https://api.whatsapp.com
-
-# Stripe
-STRIPE_SECRET_KEY=sk_live_sua_chave_stripe
-STRIPE_WEBHOOK_SECRET=whsec_seu_webhook_secret
-
-# MercadoPago
-MERCADOPAGO_ACCESS_TOKEN=APP_USR_seu_token_mp
-
-# App
-SITE_URL=https://seu-dominio.com
-```
-
-### Configuração do Cron Job
-Para coleta automática de métricas a cada 5 minutos:
-
-```sql
-SELECT cron.schedule(
-  'collect-metrics',
-  '*/5 * * * *',
-  $$
-  SELECT net.http_get(
-    url := 'https://obclzswvwjslxexskvcf.supabase.co/functions/v1/hetzner-monitor',
-    headers := '{"Authorization": "Bearer sua_chave_service_role"}'::jsonb
-  );
-  $$
-);
-```
-
-## 📈 Métricas e Monitoramento
-
-### Dashboard Principal
-- Total de servidores
-- Status em tempo real (Online/Alerta/Offline)
-- Filtros por status e busca
-- Cards detalhados por servidor
-
-### Métricas Coletadas
-- **CPU Usage** - Percentual de uso do processador
-- **Memory Usage** - Percentual de uso da memória RAM
-- **Disk Usage** - Percentual de uso do disco
-- **Network I/O** - Tráfego de entrada e saída
-- **Uptime** - Tempo de atividade do servidor
-
-### Alertas Configuráveis
-- Limites personalizáveis por métrica
-- Múltiplos canais de notificação
-- Histórico de alertas enviados
-- Configuração por servidor ou global
-
-## 🎯 Roadmap de Desenvolvimento
-
-### Versão 1.0 (Atual)
-- ✅ Dashboard básico
-- ✅ Integração Hetzner Cloud
-- ✅ Sistema de alertas
-- ✅ Pagamentos Stripe/MercadoPago
-
-### Versão 1.1
-- [ ] Integração AWS CloudWatch
-- [ ] Integração Digital Ocean
-- [ ] Relatórios em PDF
-- [ ] API pública para clientes
-
-### Versão 1.2
-- [ ] Mobile app (React Native)
-- [ ] Integração Slack/Discord
-- [ ] Previsão de capacidade (IA)
-- [ ] Multi-tenant para agências
-
-## 🛠️ Comandos de Desenvolvimento
-
+### Pré-requisitos
 ```bash
-# Instalar dependências
-npm install
+Node.js 18+
+Supabase CLI
+Bun ou npm
+```
 
-# Executar em desenvolvimento
-npm run dev
+### Instalação
+```bash
+# Clone o repositório
+git clone <repository-url>
+cd desktools
 
-# Build para produção
-npm run build
+# Instale dependências
+bun install
 
-# Deploy das Edge Functions
+# Configure variáveis de ambiente
+cp .env.example .env.local
+
+# Execute migrações do banco
+supabase db reset
+
+# Inicie o desenvolvimento
+bun dev
+```
+
+### Configuração de Secrets (Supabase)
+```bash
+# APIs de terceiros
+HETZNER_API_KEY=your_hetzner_key
+STRIPE_SECRET_KEY=your_stripe_key
+MERCADOPAGO_ACCESS_TOKEN=your_mercadopago_token
+WHATSAPP_API_KEY=your_whatsapp_key
+SENDGRID_API_KEY=your_sendgrid_key
+```
+
+## 🔧 APIs e Integrações
+
+### Hetzner Cloud API
+- **Endpoint**: `/functions/v1/hetzner-monitor`
+- **Método**: POST
+- **Frequência**: A cada 5 minutos
+- **Dados Coletados**: CPU, RAM, Rede, Status
+
+### Sistema de Alertas
+- **Endpoint**: `/functions/v1/send-alerts`
+- **Triggers**: Thresholds excedidos
+- **Canais**: Email (SendGrid), WhatsApp (API)
+
+### Webhooks de Pagamento
+```javascript
+// Stripe
+POST /functions/v1/payment-webhook
+Headers: stripe-signature
+
+// MercadoPago
+POST /functions/v1/payment-webhook
+Headers: x-signature
+```
+
+## 📈 Métricas e Analytics
+
+### KPIs do Negócio
+- **MRR (Monthly Recurring Revenue)**: Receita mensal recorrente
+- **Churn Rate**: Taxa de cancelamento
+- **Customer Acquisition Cost (CAC)**: Custo de aquisição
+- **Lifetime Value (LTV)**: Valor vitalício do cliente
+
+### Métricas Técnicas
+- **Uptime**: Disponibilidade da plataforma
+- **Response Time**: Tempo de resposta das APIs
+- **Error Rate**: Taxa de erros
+- **Alert Accuracy**: Precisão dos alertas
+
+## 🔄 CI/CD e Deploy
+
+### Ambiente de Desenvolvimento
+```bash
+# Desenvolvimento local
+bun dev
+
+# Testes
+bun test
+
+# Build
+bun build
+```
+
+### Deploy para Produção
+```bash
+# Deploy automático via Supabase
 supabase functions deploy
 
-# Executar migrações
-supabase db push
+# Deploy frontend via Lovable
+# Automático ao fazer push para main
 ```
+
+## 🐛 Troubleshooting
+
+### Problemas Comuns
+
+#### 1. Erro de Autenticação
+```bash
+# Verificar configuração do Supabase
+supabase status
+
+# Resetar auth
+supabase auth users list
+```
+
+#### 2. Falha nas Métricas
+```bash
+# Verificar Edge Functions
+supabase functions logs hetzner-monitor
+
+# Testar API Hetzner
+curl -H "Authorization: Bearer TOKEN" https://api.hetzner.cloud/v1/servers
+```
+
+#### 3. Alertas Não Enviados
+```bash
+# Verificar logs de alertas
+supabase functions logs send-alerts
+
+# Testar SendGrid
+curl -X POST https://api.sendgrid.v3/mail/send
+```
+
+## 📝 Roadmap
+
+### Q1 2024
+- [x] MVP com monitoramento básico
+- [x] Sistema de alertas email
+- [x] Integração Stripe
+
+### Q2 2024
+- [ ] Alertas WhatsApp
+- [ ] Dashboard avançado
+- [ ] API pública
+- [ ] Mobile app (React Native)
+
+### Q3 2024
+- [ ] AI-powered anomaly detection
+- [ ] Integração AWS/GCP
+- [ ] White-label solution
+- [ ] Advanced analytics
+
+### Q4 2024
+- [ ] Enterprise features
+- [ ] Global expansion
+- [ ] Marketplace integrations
+- [ ] Advanced automation
+
+## 🤝 Contribuição
+
+### Guidelines
+1. Fork o repositório
+2. Crie uma branch feature: `git checkout -b feature/nova-funcionalidade`
+3. Commit suas mudanças: `git commit -m 'Adiciona nova funcionalidade'`
+4. Push para a branch: `git push origin feature/nova-funcionalidade`
+5. Abra um Pull Request
+
+### Padrões de Código
+- **TypeScript**: Tipagem estrita
+- **ESLint**: Linting automático
+- **Prettier**: Formatação consistente
+- **Commits**: Conventional Commits
 
 ## 📞 Suporte
 
-- **Email:** suporte@desktools.com
-- **Discord:** [Comunidade DeskTools](https://discord.gg/desktools)
-- **Documentação:** [docs.desktools.com](https://docs.desktools.com)
+### Canais de Suporte
+- **Email**: suporte@desktools.com
+- **Discord**: [Community Server]
+- **Docs**: [docs.desktools.com]
+- **Status**: [status.desktools.com]
 
-## 📄 Licença
-
-Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+### SLA por Plano
+- **Free**: Melhor esforço
+- **Basic**: 48h response time
+- **Pro**: 24h response time
+- **Enterprise**: 4h response time + Phone support
 
 ---
 
-**DeskTools** - Monitoramento de servidores simplificado e eficiente.
+## 📄 Licença
+
+Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+
+## 👥 Equipe
+
+**Desenvolvimento**: Equipe DeskTools  
+**Arquitetura**: Baseada em Supabase + React  
+**Monitoramento**: Hetzner Cloud APIs  
+**Pagamentos**: Stripe + MercadoPago  
+
+---
+
+*DeskTools - Monitoramento inteligente para servidores modernos* 🚀

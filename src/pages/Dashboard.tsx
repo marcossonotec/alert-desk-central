@@ -2,19 +2,26 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, RefreshCw, Search, Filter } from 'lucide-react';
+import { Plus, RefreshCw, Search, Filter, LogOut, Settings, User } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import ServerCard from '@/components/ServerCard';
 import AddServerModal from '@/components/AddServerModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Tipo para definir o status do servidor
 type ServerStatus = 'online' | 'warning' | 'offline';
 
 interface Server {
   id: string;
-  nome: string;
+  name: string;
   ip: string;
   status: ServerStatus;
   uptime: string;
@@ -30,12 +37,34 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ServerStatus>('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // Carregar servidores do banco de dados
+  // Carregar dados do usuário
   useEffect(() => {
+    const loadUserData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+        
+        // Carregar perfil do usuário
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        setUserProfile(profile);
+      } else {
+        navigate('/login');
+      }
+    };
+
+    loadUserData();
     loadServers();
-  }, []);
+  }, [navigate]);
 
   const loadServers = async () => {
     try {
@@ -43,7 +72,6 @@ const Dashboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        // Se não há usuário logado, usar dados mockados
         loadMockServers();
         return;
       }
@@ -66,13 +94,12 @@ const Dashboard = () => {
         throw error;
       }
 
-      // Transformar dados do banco para o formato esperado pelo componente
       const transformedServers: Server[] = servidores?.map(servidor => {
         const latestMetrics = servidor.metricas?.[0];
         
         return {
           id: servidor.id,
-          nome: servidor.nome,
+          name: servidor.nome,
           ip: servidor.ip,
           status: determineServerStatus(latestMetrics),
           uptime: latestMetrics?.uptime || '0d 0h 0m',
@@ -103,7 +130,7 @@ const Dashboard = () => {
     const mockServers: Server[] = [
       {
         id: '1',
-        nome: 'Servidor Web Principal',
+        name: 'Servidor Web Principal',
         ip: '192.168.1.100',
         status: 'online',
         uptime: '15d 8h 23m',
@@ -113,7 +140,7 @@ const Dashboard = () => {
       },
       {
         id: '2',
-        nome: 'Servidor de Banco de Dados',
+        name: 'Servidor de Banco de Dados',
         ip: '192.168.1.101',
         status: 'warning',
         uptime: '7d 12h 45m',
@@ -123,7 +150,7 @@ const Dashboard = () => {
       },
       {
         id: '3',
-        nome: 'Servidor de Cache',
+        name: 'Servidor de Cache',
         ip: '192.168.1.102',
         status: 'offline',
         uptime: '0d 0h 0m',
@@ -162,7 +189,7 @@ const Dashboard = () => {
   };
 
   const filteredServers = servers.filter(server => {
-    const matchesSearch = server.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = server.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          server.ip.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || server.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -176,7 +203,6 @@ const Dashboard = () => {
   };
 
   const handleAddServer = (serverData: any) => {
-    // Recarregar a lista de servidores após adicionar um novo
     loadServers();
   };
 
@@ -188,6 +214,21 @@ const Dashboard = () => {
     });
   };
 
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Erro ao sair",
+        description: "Não foi possível fazer logout.",
+        variant: "destructive"
+      });
+    } else {
+      navigate('/');
+    }
+  };
+
+  const isAdmin = userProfile?.plano_ativo === 'admin' || user?.email === 'admin@desktools.com';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -196,8 +237,13 @@ const Dashboard = () => {
           <div>
             <h1 className="text-3xl font-bold text-white">Dashboard</h1>
             <p className="text-slate-300">Monitore seus servidores em tempo real</p>
+            {userProfile && (
+              <p className="text-slate-400 text-sm">
+                Bem-vindo, {userProfile.nome_completo || user?.email}
+              </p>
+            )}
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
             <Button
               onClick={refreshServers}
               variant="outline"
@@ -214,6 +260,41 @@ const Dashboard = () => {
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Servidor
             </Button>
+            
+            {/* Menu do usuário */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
+                  <User className="h-4 w-4 mr-2" />
+                  Menu
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-slate-800 border-slate-700">
+                <DropdownMenuItem 
+                  onClick={() => navigate('/profile')}
+                  className="text-slate-300 hover:bg-slate-700 cursor-pointer"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configurações
+                </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem 
+                    onClick={() => navigate('/admin')}
+                    className="text-slate-300 hover:bg-slate-700 cursor-pointer"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Administração
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem 
+                  onClick={handleLogout}
+                  className="text-red-400 hover:bg-slate-700 cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -341,7 +422,7 @@ const Dashboard = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredServers.map((server) => (
-              <ServerCard key={server.id} server={server} />
+              <ServerCard key={server.id} server={server} onRefresh={loadServers} />
             ))}
           </div>
         )}
