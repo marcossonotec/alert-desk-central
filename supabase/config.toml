@@ -1,1 +1,14 @@
+
 project_id = "obclzswvwjslxexskvcf"
+
+[functions.hetzner-monitor]
+verify_jwt = false
+
+[functions.send-alerts]
+verify_jwt = false
+
+[functions.payment-webhook]
+verify_jwt = false
+
+[functions.create-subscription]
+verify_jwt = true

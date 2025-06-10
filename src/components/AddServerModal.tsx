@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Server, Globe, Key, Webhook } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AddServerModalProps {
   isOpen: boolean;
@@ -17,11 +18,11 @@ interface AddServerModalProps {
 
 const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddServer }) => {
   const [formData, setFormData] = useState({
-    name: '',
+    nome: '',
     ip: '',
-    webhookUrl: '',
-    apiKey: '',
-    description: ''
+    webhook_url: '',
+    api_key: '',
+    provedor: 'hetzner'
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -37,26 +38,62 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
     e.preventDefault();
     setIsLoading(true);
 
-    // Simular adição do servidor
-    setTimeout(() => {
-      onAddServer(formData);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Você precisa estar logado para adicionar servidores.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('servidores')
+        .insert({
+          usuario_id: user.id,
+          nome: formData.nome,
+          ip: formData.ip,
+          webhook_url: formData.webhook_url,
+          api_key: formData.api_key,
+          provedor: formData.provedor,
+          status: 'ativo'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      onAddServer(data);
       toast({
         title: "Servidor adicionado com sucesso!",
-        description: `${formData.name} está sendo monitorado.`,
+        description: `${formData.nome} está sendo monitorado.`,
       });
       
       // Reset form
       setFormData({
-        name: '',
+        nome: '',
         ip: '',
-        webhookUrl: '',
-        apiKey: '',
-        description: ''
+        webhook_url: '',
+        api_key: '',
+        provedor: 'hetzner'
       });
       
-      setIsLoading(false);
       onClose();
-    }, 1000);
+    } catch (error: any) {
+      console.error('Erro ao adicionar servidor:', error);
+      toast({
+        title: "Erro ao adicionar servidor",
+        description: error.message || "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -73,7 +110,7 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
+          {/* Informações Básicas */}
           <Card className="bg-slate-700/50 border-slate-600">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg text-white flex items-center space-x-2">
@@ -84,12 +121,12 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="text-slate-300">Nome do Servidor</Label>
+                  <Label htmlFor="nome" className="text-slate-300">Nome do Servidor</Label>
                   <Input
-                    id="name"
-                    name="name"
-                    placeholder="Ex: Web Server 01"
-                    value={formData.name}
+                    id="nome"
+                    name="nome"
+                    placeholder="Ex: Servidor Web 01"
+                    value={formData.nome}
                     onChange={handleInputChange}
                     className="bg-slate-600/50 border-slate-500 text-white placeholder:text-slate-400"
                     required
@@ -111,22 +148,10 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
                   </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="description" className="text-slate-300">Descrição (Opcional)</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  placeholder="Descreva a função deste servidor..."
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  className="bg-slate-600/50 border-slate-500 text-white placeholder:text-slate-400"
-                  rows={2}
-                />
-              </div>
             </CardContent>
           </Card>
 
-          {/* Webhook Configuration */}
+          {/* Configuração de Webhook */}
           <Card className="bg-slate-700/50 border-slate-600">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg text-white flex items-center space-x-2">
@@ -136,28 +161,28 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="webhookUrl" className="text-slate-300">URL do Webhook</Label>
+                <Label htmlFor="webhook_url" className="text-slate-300">URL do Webhook</Label>
                 <Input
-                  id="webhookUrl"
-                  name="webhookUrl"
+                  id="webhook_url"
+                  name="webhook_url"
                   type="url"
                   placeholder="https://seu-webhook.com/alerts"
-                  value={formData.webhookUrl}
+                  value={formData.webhook_url}
                   onChange={handleInputChange}
                   className="bg-slate-600/50 border-slate-500 text-white placeholder:text-slate-400"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="apiKey" className="text-slate-300">API Key</Label>
+                <Label htmlFor="api_key" className="text-slate-300">API Key</Label>
                 <div className="relative">
                   <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
-                    id="apiKey"
-                    name="apiKey"
+                    id="api_key"
+                    name="api_key"
                     type="password"
                     placeholder="Sua API key para autenticação"
-                    value={formData.apiKey}
+                    value={formData.api_key}
                     onChange={handleInputChange}
                     className="bg-slate-600/50 border-slate-500 text-white placeholder:text-slate-400 pl-10"
                     required
@@ -167,7 +192,7 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
+          {/* Botões de Ação */}
           <div className="flex justify-end space-x-4">
             <Button
               type="button"

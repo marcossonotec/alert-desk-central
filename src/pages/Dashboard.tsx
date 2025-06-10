@@ -6,19 +6,22 @@ import { Plus, RefreshCw, Search, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import ServerCard from '@/components/ServerCard';
 import AddServerModal from '@/components/AddServerModal';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 // Tipo para definir o status do servidor
 type ServerStatus = 'online' | 'warning' | 'offline';
 
 interface Server {
   id: string;
-  name: string;
+  nome: string;
   ip: string;
   status: ServerStatus;
   uptime: string;
   cpu: number;
   memory: number;
   lastUpdate: string;
+  provedor?: string;
 }
 
 const Dashboard = () => {
@@ -26,13 +29,81 @@ const Dashboard = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ServerStatus>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
-  // Dados mockados para demonstração
+  // Carregar servidores do banco de dados
   useEffect(() => {
+    loadServers();
+  }, []);
+
+  const loadServers = async () => {
+    try {
+      setIsLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // Se não há usuário logado, usar dados mockados
+        loadMockServers();
+        return;
+      }
+
+      const { data: servidores, error } = await supabase
+        .from('servidores')
+        .select(`
+          *,
+          metricas (
+            cpu_usage,
+            memoria_usage,
+            uptime,
+            timestamp
+          )
+        `)
+        .eq('usuario_id', user.id)
+        .order('data_criacao', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      // Transformar dados do banco para o formato esperado pelo componente
+      const transformedServers: Server[] = servidores?.map(servidor => {
+        const latestMetrics = servidor.metricas?.[0];
+        
+        return {
+          id: servidor.id,
+          nome: servidor.nome,
+          ip: servidor.ip,
+          status: determineServerStatus(latestMetrics),
+          uptime: latestMetrics?.uptime || '0d 0h 0m',
+          cpu: latestMetrics?.cpu_usage || 0,
+          memory: latestMetrics?.memoria_usage || 0,
+          lastUpdate: latestMetrics?.timestamp 
+            ? formatLastUpdate(latestMetrics.timestamp)
+            : 'Nunca',
+          provedor: servidor.provedor
+        };
+      }) || [];
+
+      setServers(transformedServers);
+    } catch (error: any) {
+      console.error('Erro ao carregar servidores:', error);
+      toast({
+        title: "Erro ao carregar servidores",
+        description: "Carregando dados de demonstração.",
+        variant: "destructive"
+      });
+      loadMockServers();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMockServers = () => {
     const mockServers: Server[] = [
       {
         id: '1',
-        name: 'Servidor Web Principal',
+        nome: 'Servidor Web Principal',
         ip: '192.168.1.100',
         status: 'online',
         uptime: '15d 8h 23m',
@@ -42,7 +113,7 @@ const Dashboard = () => {
       },
       {
         id: '2',
-        name: 'Servidor de Banco de Dados',
+        nome: 'Servidor de Banco de Dados',
         ip: '192.168.1.101',
         status: 'warning',
         uptime: '7d 12h 45m',
@@ -52,7 +123,7 @@ const Dashboard = () => {
       },
       {
         id: '3',
-        name: 'Servidor de Cache',
+        nome: 'Servidor de Cache',
         ip: '192.168.1.102',
         status: 'offline',
         uptime: '0d 0h 0m',
@@ -62,10 +133,36 @@ const Dashboard = () => {
       },
     ];
     setServers(mockServers);
-  }, []);
+  };
+
+  const determineServerStatus = (metrics: any): ServerStatus => {
+    if (!metrics) return 'offline';
+    
+    const cpuUsage = metrics.cpu_usage || 0;
+    const memoryUsage = metrics.memoria_usage || 0;
+    
+    if (cpuUsage > 80 || memoryUsage > 90) return 'warning';
+    return 'online';
+  };
+
+  const formatLastUpdate = (timestamp: string): string => {
+    const now = new Date();
+    const updateTime = new Date(timestamp);
+    const diffMs = now.getTime() - updateTime.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    
+    if (diffMins < 1) return 'Agora';
+    if (diffMins < 60) return `${diffMins} min atrás`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h atrás`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d atrás`;
+  };
 
   const filteredServers = servers.filter(server => {
-    const matchesSearch = server.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = server.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          server.ip.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || server.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -79,23 +176,16 @@ const Dashboard = () => {
   };
 
   const handleAddServer = (serverData: any) => {
-    const newServer: Server = {
-      id: Date.now().toString(),
-      name: serverData.name,
-      ip: serverData.ip,
-      status: 'online',
-      uptime: '0d 0h 0m',
-      cpu: 0,
-      memory: 0,
-      lastUpdate: 'Agora',
-    };
-    setServers([...servers, newServer]);
-    setIsAddModalOpen(false);
+    // Recarregar a lista de servidores após adicionar um novo
+    loadServers();
   };
 
   const refreshServers = () => {
-    // Implementar lógica de refresh aqui
-    console.log('Atualizando servidores...');
+    loadServers();
+    toast({
+      title: "Servidores atualizados",
+      description: "Lista de servidores foi atualizada com sucesso.",
+    });
   };
 
   return (
@@ -112,8 +202,9 @@ const Dashboard = () => {
               onClick={refreshServers}
               variant="outline"
               className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              disabled={isLoading}
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
             <Button
@@ -233,13 +324,29 @@ const Dashboard = () => {
         </Card>
 
         {/* Lista de Servidores */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredServers.map((server) => (
-            <ServerCard key={server.id} server={server} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-6">
+                  <div className="animate-pulse space-y-4">
+                    <div className="h-6 bg-slate-700 rounded"></div>
+                    <div className="h-4 bg-slate-700 rounded w-2/3"></div>
+                    <div className="h-4 bg-slate-700 rounded w-1/2"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredServers.map((server) => (
+              <ServerCard key={server.id} server={server} />
+            ))}
+          </div>
+        )}
 
-        {filteredServers.length === 0 && (
+        {filteredServers.length === 0 && !isLoading && (
           <Card className="bg-slate-800/50 border-slate-700">
             <CardContent className="p-12 text-center">
               <p className="text-slate-400 text-lg">Nenhum servidor encontrado</p>
@@ -254,7 +361,7 @@ const Dashboard = () => {
       <AddServerModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onSave={handleAddServer}
+        onAddServer={handleAddServer}
       />
     </div>
   );

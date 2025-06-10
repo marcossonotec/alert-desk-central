@@ -9,7 +9,276 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      alertas: {
+        Row: {
+          ativo: boolean | null
+          canal_notificacao: string[] | null
+          data_criacao: string | null
+          id: string
+          limite_valor: number
+          servidor_id: string | null
+          tipo_alerta: string
+          usuario_id: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          canal_notificacao?: string[] | null
+          data_criacao?: string | null
+          id?: string
+          limite_valor: number
+          servidor_id?: string | null
+          tipo_alerta: string
+          usuario_id: string
+        }
+        Update: {
+          ativo?: boolean | null
+          canal_notificacao?: string[] | null
+          data_criacao?: string | null
+          id?: string
+          limite_valor?: number
+          servidor_id?: string | null
+          tipo_alerta?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alertas_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alertas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assinaturas: {
+        Row: {
+          data_criacao: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          id: string
+          plano: string
+          preco_mensal: number
+          provedor_pagamento: string
+          status: string | null
+          subscription_id: string | null
+          usuario_id: string
+        }
+        Insert: {
+          data_criacao?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          plano: string
+          preco_mensal: number
+          provedor_pagamento: string
+          status?: string | null
+          subscription_id?: string | null
+          usuario_id: string
+        }
+        Update: {
+          data_criacao?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          plano?: string
+          preco_mensal?: number
+          provedor_pagamento?: string
+          status?: string | null
+          subscription_id?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assinaturas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metricas: {
+        Row: {
+          cpu_usage: number | null
+          disco_usage: number | null
+          id: string
+          memoria_usage: number | null
+          rede_in: number | null
+          rede_out: number | null
+          servidor_id: string
+          timestamp: string | null
+          uptime: string | null
+        }
+        Insert: {
+          cpu_usage?: number | null
+          disco_usage?: number | null
+          id?: string
+          memoria_usage?: number | null
+          rede_in?: number | null
+          rede_out?: number | null
+          servidor_id: string
+          timestamp?: string | null
+          uptime?: string | null
+        }
+        Update: {
+          cpu_usage?: number | null
+          disco_usage?: number | null
+          id?: string
+          memoria_usage?: number | null
+          rede_in?: number | null
+          rede_out?: number | null
+          servidor_id?: string
+          timestamp?: string | null
+          uptime?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metricas_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notificacoes: {
+        Row: {
+          alerta_id: string
+          canal: string
+          data_envio: string | null
+          destinatario: string
+          id: string
+          mensagem: string
+          servidor_id: string
+          status: string | null
+        }
+        Insert: {
+          alerta_id: string
+          canal: string
+          data_envio?: string | null
+          destinatario: string
+          id?: string
+          mensagem: string
+          servidor_id: string
+          status?: string | null
+        }
+        Update: {
+          alerta_id?: string
+          canal?: string
+          data_envio?: string | null
+          destinatario?: string
+          id?: string
+          mensagem?: string
+          servidor_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificacoes_alerta_id_fkey"
+            columns: ["alerta_id"]
+            isOneToOne: false
+            referencedRelation: "alertas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notificacoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          data_atualizacao: string | null
+          data_criacao: string | null
+          email: string
+          empresa: string | null
+          id: string
+          nome_completo: string | null
+          plano_ativo: string | null
+          telefone: string | null
+        }
+        Insert: {
+          data_atualizacao?: string | null
+          data_criacao?: string | null
+          email: string
+          empresa?: string | null
+          id: string
+          nome_completo?: string | null
+          plano_ativo?: string | null
+          telefone?: string | null
+        }
+        Update: {
+          data_atualizacao?: string | null
+          data_criacao?: string | null
+          email?: string
+          empresa?: string | null
+          id?: string
+          nome_completo?: string | null
+          plano_ativo?: string | null
+          telefone?: string | null
+        }
+        Relationships: []
+      }
+      servidores: {
+        Row: {
+          api_key: string
+          data_atualizacao: string | null
+          data_criacao: string | null
+          id: string
+          ip: string
+          nome: string
+          provedor: string | null
+          status: string | null
+          ultima_verificacao: string | null
+          usuario_id: string
+          webhook_url: string
+        }
+        Insert: {
+          api_key: string
+          data_atualizacao?: string | null
+          data_criacao?: string | null
+          id?: string
+          ip: string
+          nome: string
+          provedor?: string | null
+          status?: string | null
+          ultima_verificacao?: string | null
+          usuario_id: string
+          webhook_url: string
+        }
+        Update: {
+          api_key?: string
+          data_atualizacao?: string | null
+          data_criacao?: string | null
+          id?: string
+          ip?: string
+          nome?: string
+          provedor?: string | null
+          status?: string | null
+          ultima_verificacao?: string | null
+          usuario_id?: string
+          webhook_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "servidores_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
