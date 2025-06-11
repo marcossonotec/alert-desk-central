@@ -100,82 +100,82 @@ const SubscriptionManagement = () => {
     <div className="space-y-6">
       {/* Estatísticas de receita */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Receita Mensal</p>
-                <p className="text-2xl font-bold text-green-400">
+                <p className="text-muted-foreground text-sm">Receita Mensal</p>
+                <p className="text-2xl font-bold text-green-600">
                   {formatCurrency(stats.totalRevenue)}
                 </p>
               </div>
-              <DollarSign className="h-8 w-8 text-green-400" />
+              <DollarSign className="h-8 w-8 text-green-600" />
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Assinaturas Ativas</p>
-                <p className="text-2xl font-bold text-blue-400">
+                <p className="text-muted-foreground text-sm">Assinaturas Ativas</p>
+                <p className="text-2xl font-bold text-blue-600">
                   {stats.activeSubscriptions}
                 </p>
               </div>
-              <CreditCard className="h-8 w-8 text-blue-400" />
+              <CreditCard className="h-8 w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Crescimento Mensal</p>
-                <p className="text-2xl font-bold text-purple-400">
+                <p className="text-muted-foreground text-sm">Crescimento Mensal</p>
+                <p className="text-2xl font-bold text-purple-600">
                   +{stats.monthlyGrowth}%
                 </p>
               </div>
-              <TrendingUp className="h-8 w-8 text-purple-400" />
+              <TrendingUp className="h-8 w-8 text-purple-600" />
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Total de Clientes</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-muted-foreground text-sm">Total de Clientes</p>
+                <p className="text-2xl font-bold">
                   {subscriptions.length}
                 </p>
               </div>
-              <CreditCard className="h-8 w-8 text-slate-400" />
+              <CreditCard className="h-8 w-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Filtros e busca */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-card border-border">
         <CardContent className="p-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Buscar por cliente, email ou plano..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-slate-700 border-slate-600 text-white placeholder-slate-400"
+              className="pl-10 bg-background border-border"
             />
           </div>
         </CardContent>
       </Card>
 
       {/* Lista de assinaturas */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
             Assinaturas e Pagamentos
           </CardTitle>
@@ -183,13 +183,13 @@ const SubscriptionManagement = () => {
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8">
-              <p className="text-slate-400">Carregando assinaturas...</p>
+              <p className="text-muted-foreground">Carregando assinaturas...</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-slate-300">
+              <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-700">
+                  <tr className="border-b border-border">
                     <th className="text-left py-3">Cliente</th>
                     <th className="text-left py-3">Plano</th>
                     <th className="text-left py-3">Valor Mensal</th>
@@ -201,13 +201,13 @@ const SubscriptionManagement = () => {
                 </thead>
                 <tbody>
                   {filteredSubscriptions.map((subscription) => (
-                    <tr key={subscription.id} className="border-b border-slate-700/50">
+                    <tr key={subscription.id} className="border-b border-border">
                       <td className="py-3">
                         <div>
                           <p className="font-medium">{subscription.profiles?.nome_completo || 'N/A'}</p>
-                          <p className="text-sm text-slate-500">{subscription.profiles?.email}</p>
+                          <p className="text-sm text-muted-foreground">{subscription.profiles?.email}</p>
                           {subscription.profiles?.empresa && (
-                            <p className="text-xs text-slate-600">{subscription.profiles.empresa}</p>
+                            <p className="text-xs text-muted-foreground">{subscription.profiles.empresa}</p>
                           )}
                         </div>
                       </td>

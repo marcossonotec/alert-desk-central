@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Server, Globe, Key, Webhook } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -98,51 +97,51 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
+      <DialogContent className="bg-card border-border max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl">
-            <Server className="h-6 w-6 text-blue-400" />
+            <Server className="h-6 w-6 text-primary" />
             <span>Adicionar Novo Servidor</span>
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-muted-foreground">
             Configure um novo servidor para monitoramento em tempo real
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Informações Básicas */}
-          <Card className="bg-slate-700/50 border-slate-600">
+          <Card className="bg-card/50 border-border">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg text-white flex items-center space-x-2">
-                <Server className="h-5 w-5 text-blue-400" />
+              <CardTitle className="text-lg flex items-center space-x-2">
+                <Server className="h-5 w-5 text-primary" />
                 <span>Informações Básicas</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="nome" className="text-slate-300">Nome do Servidor</Label>
+                  <Label htmlFor="nome" className="text-foreground">Nome do Servidor</Label>
                   <Input
                     id="nome"
                     name="nome"
                     placeholder="Ex: Servidor Web 01"
                     value={formData.nome}
                     onChange={handleInputChange}
-                    className="bg-slate-600/50 border-slate-500 text-white placeholder:text-slate-400"
+                    className="bg-background border-border"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ip" className="text-slate-300">IP do Servidor</Label>
+                  <Label htmlFor="ip" className="text-foreground">IP do Servidor</Label>
                   <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="ip"
                       name="ip"
                       placeholder="192.168.1.100"
                       value={formData.ip}
                       onChange={handleInputChange}
-                      className="bg-slate-600/50 border-slate-500 text-white placeholder:text-slate-400 pl-10"
+                      className="bg-background border-border pl-10"
                       required
                     />
                   </div>
@@ -152,16 +151,16 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
           </Card>
 
           {/* Configuração de Webhook */}
-          <Card className="bg-slate-700/50 border-slate-600">
+          <Card className="bg-card/50 border-border">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg text-white flex items-center space-x-2">
-                <Webhook className="h-5 w-5 text-purple-400" />
+              <CardTitle className="text-lg flex items-center space-x-2">
+                <Webhook className="h-5 w-5 text-purple-500" />
                 <span>Configuração de Webhook</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="webhook_url" className="text-slate-300">URL do Webhook</Label>
+                <Label htmlFor="webhook_url" className="text-foreground">URL do Webhook</Label>
                 <Input
                   id="webhook_url"
                   name="webhook_url"
@@ -169,14 +168,14 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
                   placeholder="https://seu-webhook.com/alerts"
                   value={formData.webhook_url}
                   onChange={handleInputChange}
-                  className="bg-slate-600/50 border-slate-500 text-white placeholder:text-slate-400"
+                  className="bg-background border-border"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="api_key" className="text-slate-300">API Key</Label>
+                <Label htmlFor="api_key" className="text-foreground">API Key</Label>
                 <div className="relative">
-                  <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="api_key"
                     name="api_key"
@@ -184,7 +183,7 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
                     placeholder="Sua API key para autenticação"
                     value={formData.api_key}
                     onChange={handleInputChange}
-                    className="bg-slate-600/50 border-slate-500 text-white placeholder:text-slate-400 pl-10"
+                    className="bg-background border-border pl-10"
                     required
                   />
                 </div>
@@ -198,13 +197,13 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
               type="button"
               variant="outline"
               onClick={onClose}
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              className="border-border hover:bg-accent"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={isLoading}
             >
               {isLoading ? "Adicionando..." : "Adicionar Servidor"}

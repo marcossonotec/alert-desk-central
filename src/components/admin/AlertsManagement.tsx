@@ -98,59 +98,59 @@ const AlertsManagement = () => {
     <div className="space-y-6">
       {/* Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-2xl font-bold text-white">{alerts.length}</p>
-              <p className="text-slate-400 text-sm">Alertas Configurados</p>
+              <p className="text-2xl font-bold">{alerts.length}</p>
+              <p className="text-muted-foreground text-sm">Alertas Configurados</p>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-2xl font-bold text-green-400">
+              <p className="text-2xl font-bold text-green-600">
                 {alerts.filter(a => a.ativo).length}
               </p>
-              <p className="text-slate-400 text-sm">Alertas Ativos</p>
+              <p className="text-muted-foreground text-sm">Alertas Ativos</p>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-2xl font-bold text-blue-400">{notifications.length}</p>
-              <p className="text-slate-400 text-sm">Notificações Enviadas</p>
+              <p className="text-2xl font-bold text-blue-600">{notifications.length}</p>
+              <p className="text-muted-foreground text-sm">Notificações Enviadas</p>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-2xl font-bold text-yellow-400">
+              <p className="text-2xl font-bold text-yellow-600">
                 {notifications.filter(n => 
                   new Date(n.data_envio) > new Date(Date.now() - 24 * 60 * 60 * 1000)
                 ).length}
               </p>
-              <p className="text-slate-400 text-sm">Últimas 24h</p>
+              <p className="text-muted-foreground text-sm">Últimas 24h</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Filtros e busca */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-card border-border">
         <CardContent className="p-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Buscar por tipo de alerta, usuário ou servidor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-slate-700 border-slate-600 text-white placeholder-slate-400"
+              className="pl-10 bg-background border-border"
             />
           </div>
         </CardContent>
@@ -158,9 +158,9 @@ const AlertsManagement = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Alertas Configurados */}
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
               Alertas Configurados
             </CardTitle>
@@ -168,12 +168,12 @@ const AlertsManagement = () => {
           <CardContent>
             {isLoading ? (
               <div className="text-center py-8">
-                <p className="text-slate-400">Carregando alertas...</p>
+                <p className="text-muted-foreground">Carregando alertas...</p>
               </div>
             ) : (
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {filteredAlerts.map((alert) => (
-                  <div key={alert.id} className="border border-slate-700 rounded-lg p-4">
+                  <div key={alert.id} className="border border-border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <Badge className={`${getAlertTypeColor(alert.tipo_alerta)} text-white`}>
                         {alert.tipo_alerta.toUpperCase()}
@@ -183,7 +183,7 @@ const AlertsManagement = () => {
                       </Badge>
                     </div>
                     
-                    <div className="text-sm text-slate-300 space-y-1">
+                    <div className="text-sm space-y-1">
                       <p><strong>Usuário:</strong> {alert.profiles?.nome_completo || alert.profiles?.email}</p>
                       <p><strong>Servidor:</strong> {alert.servidores?.nome || 'Todos'}</p>
                       <p><strong>Limite:</strong> {alert.limite_valor}%</p>
@@ -197,9 +197,9 @@ const AlertsManagement = () => {
         </Card>
 
         {/* Notificações Recentes */}
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2">
               <Mail className="h-5 w-5" />
               Notificações Recentes
             </CardTitle>
@@ -207,27 +207,27 @@ const AlertsManagement = () => {
           <CardContent>
             {isLoading ? (
               <div className="text-center py-8">
-                <p className="text-slate-400">Carregando notificações...</p>
+                <p className="text-muted-foreground">Carregando notificações...</p>
               </div>
             ) : (
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {notifications.slice(0, 20).map((notification) => {
                   const ChannelIcon = getChannelIcon(notification.canal);
                   return (
-                    <div key={notification.id} className="border border-slate-700 rounded-lg p-4">
+                    <div key={notification.id} className="border border-border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <ChannelIcon className="h-4 w-4 text-slate-400" />
+                          <ChannelIcon className="h-4 w-4 text-muted-foreground" />
                           <Badge className="bg-blue-600 text-white">
                             {notification.alertas?.tipo_alerta}
                           </Badge>
                         </div>
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-muted-foreground">
                           {new Date(notification.data_envio).toLocaleString()}
                         </span>
                       </div>
                       
-                      <div className="text-sm text-slate-300 space-y-1">
+                      <div className="text-sm space-y-1">
                         <p><strong>Servidor:</strong> {notification.servidores?.nome}</p>
                         <p><strong>Destinatário:</strong> {notification.destinatario}</p>
                         <p><strong>Status:</strong> {notification.status}</p>

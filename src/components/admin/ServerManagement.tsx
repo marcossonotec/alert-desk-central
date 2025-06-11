@@ -85,60 +85,60 @@ const ServerManagement = () => {
     <div className="space-y-6">
       {/* Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-2xl font-bold text-white">{servers.length}</p>
-              <p className="text-slate-400 text-sm">Total de Servidores</p>
+              <p className="text-2xl font-bold">{servers.length}</p>
+              <p className="text-muted-foreground text-sm">Total de Servidores</p>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-2xl font-bold text-green-400">
+              <p className="text-2xl font-bold text-green-600">
                 {servers.filter(s => getStatusText(s) === 'Online').length}
               </p>
-              <p className="text-slate-400 text-sm">Online</p>
+              <p className="text-muted-foreground text-sm">Online</p>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-2xl font-bold text-yellow-400">
+              <p className="text-2xl font-bold text-yellow-600">
                 {servers.filter(s => getStatusText(s) === 'Alerta').length}
               </p>
-              <p className="text-slate-400 text-sm">Com Alerta</p>
+              <p className="text-muted-foreground text-sm">Com Alerta</p>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-2xl font-bold text-red-400">
+              <p className="text-2xl font-bold text-red-600">
                 {servers.filter(s => getStatusText(s) === 'Offline').length}
               </p>
-              <p className="text-slate-400 text-sm">Offline</p>
+              <p className="text-muted-foreground text-sm">Offline</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Filtros e busca */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-card border-border">
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="Buscar por nome, IP ou proprietário..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-slate-700 border-slate-600 text-white placeholder-slate-400"
+                className="pl-10 bg-background border-border"
               />
             </div>
           </div>
@@ -146,9 +146,9 @@ const ServerManagement = () => {
       </Card>
 
       {/* Lista de servidores */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <Server className="h-5 w-5" />
             Servidores Monitorados
           </CardTitle>
@@ -156,13 +156,13 @@ const ServerManagement = () => {
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8">
-              <p className="text-slate-400">Carregando servidores...</p>
+              <p className="text-muted-foreground">Carregando servidores...</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-slate-300">
+              <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-700">
+                  <tr className="border-b border-border">
                     <th className="text-left py-3">Nome</th>
                     <th className="text-left py-3">IP</th>
                     <th className="text-left py-3">Proprietário</th>
@@ -176,13 +176,13 @@ const ServerManagement = () => {
                   {filteredServers.map((server) => {
                     const latestMetrics = server.metricas?.[0];
                     return (
-                      <tr key={server.id} className="border-b border-slate-700/50">
+                      <tr key={server.id} className="border-b border-border">
                         <td className="py-3">{server.nome}</td>
                         <td className="py-3 font-mono">{server.ip}</td>
                         <td className="py-3">
                           <div>
                             <p className="font-medium">{server.profiles?.nome_completo || 'N/A'}</p>
-                            <p className="text-sm text-slate-500">{server.profiles?.email}</p>
+                            <p className="text-sm text-muted-foreground">{server.profiles?.email}</p>
                           </div>
                         </td>
                         <td className="py-3 capitalize">{server.provedor}</td>
@@ -198,18 +198,18 @@ const ServerManagement = () => {
                               <p>Mem: {Math.round(latestMetrics.memoria_usage || 0)}%</p>
                             </div>
                           ) : (
-                            <span className="text-slate-500">N/A</span>
+                            <span className="text-muted-foreground">N/A</span>
                           )}
                         </td>
                         <td className="py-3">
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300">
+                            <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
                               <Activity className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" className="text-green-400 hover:text-green-300">
+                            <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700">
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300">
+                            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
