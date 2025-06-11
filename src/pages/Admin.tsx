@@ -3,9 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Users, Server, AlertTriangle, CreditCard } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import UserManagement from '@/components/admin/UserManagement';
 import ServerManagement from '@/components/admin/ServerManagement';
 import AlertsManagement from '@/components/admin/AlertsManagement';
@@ -13,26 +14,25 @@ import SubscriptionManagement from '@/components/admin/SubscriptionManagement';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('users');
-  const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAdminAccess();
-  }, []);
+    if (user) {
+      checkAdminAccess();
+    }
+  }, [user]);
 
   const checkAdminAccess = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        navigate('/login');
-        return;
-      }
-
-      setUser(user);
-
       // Verificar se é administrador
       const { data: profile } = await supabase
         .from('profiles')
@@ -40,7 +40,9 @@ const Admin = () => {
         .eq('id', user.id)
         .single();
 
-      const adminAccess = profile?.plano_ativo === 'admin' || user.email === 'admin@desktools.com';
+      setUserProfile(profile);
+
+      const adminAccess = profile?.plano_ativo === 'admin' || user.email === 'admin@flowserv.com.br';
       
       if (!adminAccess) {
         toast({
@@ -59,7 +61,7 @@ const Admin = () => {
     }
   };
 
-  if (!isAdmin) {
+  if (!user || !isAdmin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
         <div className="text-center text-white">

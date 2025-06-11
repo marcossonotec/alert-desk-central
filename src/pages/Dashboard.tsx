@@ -2,13 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, RefreshCw, Search, Filter, LogOut, Settings, User } from 'lucide-react';
+import { Plus, RefreshCw, Search, LogOut, Settings, User } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import ServerCard from '@/components/ServerCard';
 import AddServerModal from '@/components/AddServerModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,44 +38,40 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ServerStatus>('all');
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   // Carregar dados do usuário
   useEffect(() => {
-    const loadUserData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUser(user);
-        
-        // Carregar perfil do usuário
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        setUserProfile(profile);
-      } else {
-        navigate('/login');
-      }
-    };
+    if (user) {
+      loadUserProfile();
+      loadServers();
+    }
+  }, [user]);
 
-    loadUserData();
-    loadServers();
-  }, [navigate]);
+  const loadUserProfile = async () => {
+    if (!user) return;
+    
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      setUserProfile(profile);
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error);
+    }
+  };
 
   const loadServers = async () => {
+    if (!user) return;
+    
     try {
       setIsLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        loadMockServers();
-        return;
-      }
 
       const { data: servidores, error } = await supabase
         .from('servidores')
@@ -215,19 +212,23 @@ const Dashboard = () => {
   };
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      await signOut();
+      toast({
+        title: "Logout realizado",
+        description: "Você foi desconectado com sucesso.",
+      });
+      navigate('/');
+    } catch (error) {
       toast({
         title: "Erro ao sair",
         description: "Não foi possível fazer logout.",
         variant: "destructive"
       });
-    } else {
-      navigate('/');
     }
   };
 
-  const isAdmin = userProfile?.plano_ativo === 'admin' || user?.email === 'admin@desktools.com';
+  const isAdmin = userProfile?.plano_ativo === 'admin' || user?.email === 'admin@flowserv.com.br';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-6">
