@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import ThemeToggle from '@/components/ThemeToggle';
 import Footer from '@/components/Footer';
+import AddServerModal from '@/components/AddServerModal';
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
@@ -18,6 +19,7 @@ const Dashboard = () => {
   const [servers, setServers] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddServerModalOpen, setIsAddServerModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -61,6 +63,11 @@ const Dashboard = () => {
     }
   };
 
+  const handleAddServer = (newServer: any) => {
+    setServers(prev => [newServer, ...prev]);
+    setIsAddServerModalOpen(false);
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
@@ -85,6 +92,9 @@ const Dashboard = () => {
     };
     return colors[plan as keyof typeof colors] || 'bg-gray-500';
   };
+
+  // Verificar se é admin pelo email ou pelo plano
+  const isAdmin = user?.email === 'admin@flowserv.com.br' || profile?.plano_ativo === 'admin';
 
   if (isLoading) {
     return (
@@ -124,7 +134,7 @@ const Dashboard = () => {
                 Perfil
               </Button>
               
-              {profile?.plano_ativo === 'admin' && (
+              {isAdmin && (
                 <Button 
                   variant="ghost" 
                   onClick={() => navigate('/admin')}
@@ -220,7 +230,10 @@ const Dashboard = () => {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle className="text-gray-900 dark:text-white">Seus Servidores</CardTitle>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => setIsAddServerModalOpen(true)}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Servidor
               </Button>
@@ -236,7 +249,10 @@ const Dashboard = () => {
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
                   Comece adicionando seu primeiro servidor para monitoramento
                 </p>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => setIsAddServerModalOpen(true)}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Adicionar Primeiro Servidor
                 </Button>
@@ -281,6 +297,13 @@ const Dashboard = () => {
       </main>
 
       <Footer />
+
+      {/* Add Server Modal */}
+      <AddServerModal
+        isOpen={isAddServerModalOpen}
+        onClose={() => setIsAddServerModalOpen(false)}
+        onAddServer={handleAddServer}
+      />
     </div>
   );
 };
