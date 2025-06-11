@@ -1,63 +1,44 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Monitor, Eye, EyeOff } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  useEffect(() => {
-    // Verificar se o usuário já está logado
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate('/dashboard');
-      }
-    };
-    checkAuth();
-  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        toast({
-          title: "Erro no login",
-          description: error.message,
-          variant: "destructive"
-        });
-        return;
-      }
+      if (error) throw error;
 
-      if (data.user) {
-        toast({
-          title: "Login realizado com sucesso!",
-          description: "Redirecionando para o dashboard...",
-        });
-        navigate('/dashboard');
-      }
+      toast({
+        title: "Login realizado com sucesso!",
+        description: "Você será redirecionado para o dashboard.",
+      });
+
+      navigate('/dashboard');
     } catch (error: any) {
+      console.error('Erro no login:', error);
       toast({
         title: "Erro no login",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
+        description: error.message || "Credenciais inválidas.",
         variant: "destructive"
       });
     } finally {
@@ -66,82 +47,77 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center space-x-2">
-            <Monitor className="h-10 w-10 text-blue-400" />
-            <span className="text-3xl font-bold text-white">FlowServ</span>
-          </Link>
+          <h1 className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+            FlowServ
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Monitoramento de servidores em nuvem
+          </p>
         </div>
 
-        <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-white">Bem-vindo de volta</CardTitle>
-            <CardDescription className="text-slate-400">
+        <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-gray-900 dark:text-white">Entrar</CardTitle>
+            <CardDescription className="text-gray-600 dark:text-gray-400">
               Acesse sua conta para monitorar seus servidores
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-300">Email</Label>
+                <Label htmlFor="email" className="text-gray-700 dark:text-gray-300">
+                  Email
+                </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
+                  className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                   required
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-300">Senha</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Sua senha"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 pr-10"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+                <Label htmlFor="password" className="text-gray-700 dark:text-gray-300">
+                  Senha
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                  required
+                />
               </div>
-
-              <Button
-                type="submit"
+              
+              <Button 
+                type="submit" 
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                 disabled={isLoading}
               >
-                {isLoading ? "Entrando..." : "Entrar"}
+                {isLoading ? 'Entrando...' : 'Entrar'}
               </Button>
             </form>
-
+            
             <div className="mt-6 text-center">
-              <Link
-                to="/register"
-                className="text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                Não tem uma conta? Cadastre-se
-              </Link>
-            </div>
-
-            {/* Credenciais de demonstração */}
-            <div className="mt-4 p-3 bg-slate-700/30 rounded-lg text-center">
-              <p className="text-slate-400 text-sm mb-2">Conta de demonstração:</p>
-              <p className="text-slate-300 text-xs">admin@flowserv.com.br / 123456</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Não tem uma conta?{' '}
+                <Link 
+                  to="/register" 
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Cadastre-se
+                </Link>
+              </p>
             </div>
           </CardContent>
         </Card>

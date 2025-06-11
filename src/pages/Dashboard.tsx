@@ -2,449 +2,285 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, RefreshCw, Search, LogOut, Settings, User } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import ServerCard from '@/components/ServerCard';
-import AddServerModal from '@/components/AddServerModal';
+import { Badge } from '@/components/ui/badge';
+import { Server, Plus, Settings, Bell, BarChart3, User, LogOut } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-
-// Tipo para definir o status do servidor
-type ServerStatus = 'online' | 'warning' | 'offline';
-
-interface Server {
-  id: string;
-  name: string;
-  ip: string;
-  status: ServerStatus;
-  uptime: string;
-  cpu: number;
-  memory: number;
-  lastUpdate: string;
-  provedor?: string;
-}
+import ThemeToggle from '@/components/ThemeToggle';
+import Footer from '@/components/Footer';
 
 const Dashboard = () => {
-  const [servers, setServers] = useState<Server[]>([]);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | ServerStatus>('all');
-  const [isLoading, setIsLoading] = useState(true);
-  const [userProfile, setUserProfile] = useState<any>(null);
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [servers, setServers] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Carregar dados do usuário
   useEffect(() => {
     if (user) {
-      loadUserProfile();
-      loadServers();
+      loadUserData();
     }
   }, [user]);
 
-  const loadUserProfile = async () => {
+  const loadUserData = async () => {
     if (!user) return;
-    
+
     try {
-      const { data: profile } = await supabase
+      // Carregar perfil do usuário
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
-      
-      setUserProfile(profile);
-    } catch (error) {
-      console.error('Erro ao carregar perfil:', error);
-    }
-  };
 
-  const loadServers = async () => {
-    if (!user) return;
-    
-    try {
-      setIsLoading(true);
+      if (profileError) throw profileError;
+      setProfile(profileData);
 
-      const { data: servidores, error } = await supabase
+      // Carregar servidores do usuário
+      const { data: serversData, error: serversError } = await supabase
         .from('servidores')
-        .select(`
-          *,
-          metricas (
-            cpu_usage,
-            memoria_usage,
-            uptime,
-            timestamp
-          )
-        `)
+        .select('*')
         .eq('usuario_id', user.id)
         .order('data_criacao', { ascending: false });
 
-      if (error) {
-        throw error;
-      }
+      if (serversError) throw serversError;
+      setServers(serversData || []);
 
-      const transformedServers: Server[] = servidores?.map(servidor => {
-        const latestMetrics = servidor.metricas?.[0];
-        
-        return {
-          id: servidor.id,
-          name: servidor.nome,
-          ip: servidor.ip,
-          status: determineServerStatus(latestMetrics),
-          uptime: latestMetrics?.uptime || '0d 0h 0m',
-          cpu: latestMetrics?.cpu_usage || 0,
-          memory: latestMetrics?.memoria_usage || 0,
-          lastUpdate: latestMetrics?.timestamp 
-            ? formatLastUpdate(latestMetrics.timestamp)
-            : 'Nunca',
-          provedor: servidor.provedor
-        };
-      }) || [];
-
-      setServers(transformedServers);
     } catch (error: any) {
-      console.error('Erro ao carregar servidores:', error);
+      console.error('Erro ao carregar dados:', error);
       toast({
-        title: "Erro ao carregar servidores",
-        description: "Carregando dados de demonstração.",
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar as informações do usuário.",
         variant: "destructive"
       });
-      loadMockServers();
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadMockServers = () => {
-    const mockServers: Server[] = [
-      {
-        id: '1',
-        name: 'Servidor Web Principal',
-        ip: '192.168.1.100',
-        status: 'online',
-        uptime: '15d 8h 23m',
-        cpu: 45,
-        memory: 72,
-        lastUpdate: '2 min atrás',
-      },
-      {
-        id: '2',
-        name: 'Servidor de Banco de Dados',
-        ip: '192.168.1.101',
-        status: 'warning',
-        uptime: '7d 12h 45m',
-        cpu: 78,
-        memory: 89,
-        lastUpdate: '1 min atrás',
-      },
-      {
-        id: '3',
-        name: 'Servidor de Cache',
-        ip: '192.168.1.102',
-        status: 'offline',
-        uptime: '0d 0h 0m',
-        cpu: 0,
-        memory: 0,
-        lastUpdate: '5 min atrás',
-      },
-    ];
-    setServers(mockServers);
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
   };
 
-  const determineServerStatus = (metrics: any): ServerStatus => {
-    if (!metrics) return 'offline';
-    
-    const cpuUsage = metrics.cpu_usage || 0;
-    const memoryUsage = metrics.memoria_usage || 0;
-    
-    if (cpuUsage > 80 || memoryUsage > 90) return 'warning';
-    return 'online';
+  const getPlanName = (plan: string) => {
+    const plans = {
+      free: 'Gratuito',
+      profissional: 'Profissional', 
+      empresarial: 'Empresarial',
+      admin: 'Administrador'
+    };
+    return plans[plan as keyof typeof plans] || plan;
   };
 
-  const formatLastUpdate = (timestamp: string): string => {
-    const now = new Date();
-    const updateTime = new Date(timestamp);
-    const diffMs = now.getTime() - updateTime.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    
-    if (diffMins < 1) return 'Agora';
-    if (diffMins < 60) return `${diffMins} min atrás`;
-    
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h atrás`;
-    
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays}d atrás`;
+  const getPlanColor = (plan: string) => {
+    const colors = {
+      free: 'bg-gray-500',
+      profissional: 'bg-blue-500',
+      empresarial: 'bg-purple-500', 
+      admin: 'bg-red-500'
+    };
+    return colors[plan as keyof typeof colors] || 'bg-gray-500';
   };
 
-  const filteredServers = servers.filter(server => {
-    const matchesSearch = server.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         server.ip.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || server.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const statusCounts = {
-    total: servers.length,
-    online: servers.filter(s => s.status === 'online').length,
-    warning: servers.filter(s => s.status === 'warning').length,
-    offline: servers.filter(s => s.status === 'offline').length,
-  };
-
-  const handleAddServer = (serverData: any) => {
-    loadServers();
-  };
-
-  const refreshServers = () => {
-    loadServers();
-    toast({
-      title: "Servidores atualizados",
-      description: "Lista de servidores foi atualizada com sucesso.",
-    });
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      toast({
-        title: "Logout realizado",
-        description: "Você foi desconectado com sucesso.",
-      });
-      navigate('/');
-    } catch (error) {
-      toast({
-        title: "Erro ao sair",
-        description: "Não foi possível fazer logout.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const isAdmin = userProfile?.plano_ativo === 'admin' || user?.email === 'admin@flowserv.com.br';
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <p className="text-gray-600 dark:text-gray-400">Carregando dashboard...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-            <p className="text-slate-300">Monitore seus servidores em tempo real</p>
-            {userProfile && (
-              <p className="text-slate-400 text-sm">
-                Bem-vindo, {userProfile.nome_completo || user?.email}
-              </p>
-            )}
-          </div>
-          <div className="flex gap-3 items-center">
-            <Button
-              onClick={refreshServers}
-              variant="outline"
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
-              disabled={isLoading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
-            <Button
-              onClick={() => setIsAddModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Servidor
-            </Button>
-            
-            {/* Menu do usuário */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
-                  <User className="h-4 w-4 mr-2" />
-                  Menu
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-slate-800 border-slate-700">
-                <DropdownMenuItem 
-                  onClick={() => navigate('/profile')}
-                  className="text-slate-300 hover:bg-slate-700 cursor-pointer"
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-semibold text-blue-600 dark:text-blue-400">
+                FlowServ
+              </h1>
+              <span className="ml-4 text-gray-600 dark:text-gray-400">Dashboard</span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <ThemeToggle />
+              
+              {profile && (
+                <Badge className={`${getPlanColor(profile.plano_ativo)} text-white`}>
+                  {getPlanName(profile.plano_ativo)}
+                </Badge>
+              )}
+              
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate('/profile')}
+                className="text-gray-600 dark:text-gray-400"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Perfil
+              </Button>
+              
+              {profile?.plano_ativo === 'admin' && (
+                <Button 
+                  variant="ghost" 
+                  onClick={() => navigate('/admin')}
+                  className="text-gray-600 dark:text-gray-400"
                 >
                   <Settings className="h-4 w-4 mr-2" />
-                  Configurações
-                </DropdownMenuItem>
-                {isAdmin && (
-                  <DropdownMenuItem 
-                    onClick={() => navigate('/admin')}
-                    className="text-slate-300 hover:bg-slate-700 cursor-pointer"
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Administração
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem 
-                  onClick={handleLogout}
-                  className="text-red-400 hover:bg-slate-700 cursor-pointer"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sair
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  Admin
+                </Button>
+              )}
+              
+              <Button 
+                variant="ghost" 
+                onClick={handleSignOut}
+                className="text-red-600 dark:text-red-400"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sair
+              </Button>
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-slate-800/50 border-slate-700">
+      {/* Main Content */}
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Bem-vindo, {profile?.nome_completo || 'Usuário'}!
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Monitore e gerencie seus servidores em um só lugar
+          </p>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">Total</p>
-                  <p className="text-2xl font-bold text-white">{statusCounts.total}</p>
-                </div>
-                <div className="h-12 w-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                  <div className="h-6 w-6 bg-blue-500 rounded"></div>
+              <div className="flex items-center">
+                <Server className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Servidores</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{servers.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          <Card className="bg-slate-800/50 border-slate-700">
+          
+          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">Online</p>
-                  <p className="text-2xl font-bold text-green-400">{statusCounts.online}</p>
-                </div>
-                <div className="h-12 w-12 bg-green-500/20 rounded-lg flex items-center justify-center">
-                  <div className="h-6 w-6 bg-green-500 rounded"></div>
+              <div className="flex items-center">
+                <BarChart3 className="h-8 w-8 text-green-600 dark:text-green-400" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Online</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {servers.filter(s => s.status === 'ativo').length}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          <Card className="bg-slate-800/50 border-slate-700">
+          
+          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">Alerta</p>
-                  <p className="text-2xl font-bold text-yellow-400">{statusCounts.warning}</p>
-                </div>
-                <div className="h-12 w-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-                  <div className="h-6 w-6 bg-yellow-500 rounded"></div>
+              <div className="flex items-center">
+                <Bell className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Alertas</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">0</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          <Card className="bg-slate-800/50 border-slate-700">
+          
+          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">Offline</p>
-                  <p className="text-2xl font-bold text-red-400">{statusCounts.offline}</p>
-                </div>
-                <div className="h-12 w-12 bg-red-500/20 rounded-lg flex items-center justify-center">
-                  <div className="h-6 w-6 bg-red-500 rounded"></div>
+              <div className="flex items-center">
+                <Settings className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Plano</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                    {getPlanName(profile?.plano_ativo || 'free')}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Filtros e Busca */}
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                <Input
-                  placeholder="Buscar por nome ou IP..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-slate-700 border-slate-600 text-white placeholder-slate-400"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant={statusFilter === 'all' ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter('all')}
-                  className={statusFilter === 'all' ? 'bg-blue-600' : 'border-slate-600 text-slate-300'}
-                >
-                  Todos
-                </Button>
-                <Button
-                  variant={statusFilter === 'online' ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter('online')}
-                  className={statusFilter === 'online' ? 'bg-green-600' : 'border-slate-600 text-slate-300'}
-                >
-                  Online
-                </Button>
-                <Button
-                  variant={statusFilter === 'warning' ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter('warning')}
-                  className={statusFilter === 'warning' ? 'bg-yellow-600' : 'border-slate-600 text-slate-300'}
-                >
-                  Alerta
-                </Button>
-                <Button
-                  variant={statusFilter === 'offline' ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter('offline')}
-                  className={statusFilter === 'offline' ? 'bg-red-600' : 'border-slate-600 text-slate-300'}
-                >
-                  Offline
-                </Button>
-              </div>
+        {/* Servers Section */}
+        <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-gray-900 dark:text-white">Seus Servidores</CardTitle>
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Servidor
+              </Button>
             </div>
+          </CardHeader>
+          <CardContent>
+            {servers.length === 0 ? (
+              <div className="text-center py-12">
+                <Server className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  Nenhum servidor cadastrado
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  Comece adicionando seu primeiro servidor para monitoramento
+                </p>
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Primeiro Servidor
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {servers.map((server) => (
+                  <Card key={server.id} className="bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg text-gray-900 dark:text-white">{server.nome}</CardTitle>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{server.ip}</p>
+                        </div>
+                        <Badge 
+                          variant={server.status === 'ativo' ? 'default' : 'secondary'}
+                          className={server.status === 'ativo' ? 'bg-green-500' : 'bg-red-500'}
+                        >
+                          {server.status === 'ativo' ? 'Online' : 'Offline'}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">{server.provedor}</span>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm" className="text-blue-600 dark:text-blue-400">
+                            <BarChart3 className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400">
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
+      </main>
 
-        {/* Lista de Servidores */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="bg-slate-800/50 border-slate-700">
-                <CardContent className="p-6">
-                  <div className="animate-pulse space-y-4">
-                    <div className="h-6 bg-slate-700 rounded"></div>
-                    <div className="h-4 bg-slate-700 rounded w-2/3"></div>
-                    <div className="h-4 bg-slate-700 rounded w-1/2"></div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredServers.map((server) => (
-              <ServerCard key={server.id} server={server} onRefresh={loadServers} />
-            ))}
-          </div>
-        )}
-
-        {filteredServers.length === 0 && !isLoading && (
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardContent className="p-12 text-center">
-              <p className="text-slate-400 text-lg">Nenhum servidor encontrado</p>
-              <p className="text-slate-500 text-sm mt-2">
-                Tente ajustar os filtros ou adicionar um novo servidor
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      <AddServerModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAddServer={handleAddServer}
-      />
+      <Footer />
     </div>
   );
 };

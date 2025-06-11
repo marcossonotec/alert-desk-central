@@ -64,6 +64,7 @@ export type Database = {
           data_inicio: string | null
           id: string
           plano: string
+          plano_id: string | null
           preco_mensal: number
           provedor_pagamento: string
           status: string | null
@@ -76,6 +77,7 @@ export type Database = {
           data_inicio?: string | null
           id?: string
           plano: string
+          plano_id?: string | null
           preco_mensal: number
           provedor_pagamento: string
           status?: string | null
@@ -88,6 +90,7 @@ export type Database = {
           data_inicio?: string | null
           id?: string
           plano?: string
+          plano_id?: string | null
           preco_mensal?: number
           provedor_pagamento?: string
           status?: string | null
@@ -95,6 +98,13 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "assinaturas_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "planos_assinatura"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "assinaturas_usuario_id_fkey"
             columns: ["usuario_id"]
@@ -196,6 +206,39 @@ export type Database = {
           },
         ]
       }
+      planos_assinatura: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          descricao: string | null
+          id: string
+          max_servidores: number
+          nome: string
+          preco_mensal: number
+          recursos: Json
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          max_servidores: number
+          nome: string
+          preco_mensal: number
+          recursos?: Json
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          max_servidores?: number
+          nome?: string
+          preco_mensal?: number
+          recursos?: Json
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           data_atualizacao: string | null
@@ -206,6 +249,8 @@ export type Database = {
           nome_completo: string | null
           plano_ativo: string | null
           telefone: string | null
+          tema_preferido: string | null
+          whatsapp: string | null
         }
         Insert: {
           data_atualizacao?: string | null
@@ -216,6 +261,8 @@ export type Database = {
           nome_completo?: string | null
           plano_ativo?: string | null
           telefone?: string | null
+          tema_preferido?: string | null
+          whatsapp?: string | null
         }
         Update: {
           data_atualizacao?: string | null
@@ -226,6 +273,8 @@ export type Database = {
           nome_completo?: string | null
           plano_ativo?: string | null
           telefone?: string | null
+          tema_preferido?: string | null
+          whatsapp?: string | null
         }
         Relationships: []
       }

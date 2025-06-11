@@ -4,25 +4,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Save, User, Mail, Building, Phone } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { User, Mail, Building, Phone, MessageSquare, CreditCard, LogOut } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import ThemeToggle from '@/components/ThemeToggle';
+import Footer from '@/components/Footer';
+import UpgradeModal from '@/components/UpgradeModal';
 
 const Profile = () => {
-  const [formData, setFormData] = useState({
-    nome_completo: '',
-    email: '',
-    empresa: '',
-    telefone: '',
-    plano_ativo: 'free'
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [profile, setProfile] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [formData, setFormData] = useState({
+    nome_completo: '',
+    empresa: '',
+    telefone: '',
+    whatsapp: '',
+    email: '',
+  });
 
   useEffect(() => {
     if (user) {
@@ -33,71 +38,48 @@ const Profile = () => {
   const loadProfile = async () => {
     if (!user) return;
 
-    setIsLoading(true);
     try {
-      const { data: profile, error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
+      if (error) throw error;
 
-      if (profile) {
-        setFormData({
-          nome_completo: profile.nome_completo || '',
-          email: profile.email || user.email || '',
-          empresa: profile.empresa || '',
-          telefone: profile.telefone || '',
-          plano_ativo: profile.plano_ativo || 'free'
-        });
-      } else {
-        // Criar perfil se não existir
-        setFormData({
-          nome_completo: '',
-          email: user.email || '',
-          empresa: '',
-          telefone: '',
-          plano_ativo: 'free'
-        });
-      }
+      setProfile(data);
+      setFormData({
+        nome_completo: data.nome_completo || '',
+        empresa: data.empresa || '',
+        telefone: data.telefone || '',
+        whatsapp: data.whatsapp || '',
+        email: data.email || '',
+      });
     } catch (error: any) {
       console.error('Erro ao carregar perfil:', error);
       toast({
         title: "Erro ao carregar perfil",
-        description: "Não foi possível carregar os dados do perfil.",
+        description: "Não foi possível carregar seus dados.",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
-    setIsSaving(true);
+    setIsLoading(true);
     try {
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
-          email: formData.email,
+        .update({
           nome_completo: formData.nome_completo,
           empresa: formData.empresa,
           telefone: formData.telefone,
-          data_atualizacao: new Date().toISOString()
-        });
+          whatsapp: formData.whatsapp,
+        })
+        .eq('id', user.id);
 
       if (error) throw error;
 
@@ -105,6 +87,8 @@ const Profile = () => {
         title: "Perfil atualizado",
         description: "Suas informações foram salvas com sucesso.",
       });
+
+      loadProfile();
     } catch (error: any) {
       console.error('Erro ao salvar perfil:', error);
       toast({
@@ -113,187 +97,238 @@ const Profile = () => {
         variant: "destructive"
       });
     } finally {
-      setIsSaving(false);
+      setIsLoading(false);
     }
   };
 
-  const planLabels = {
-    free: 'Gratuito',
-    basic: 'Básico',
-    pro: 'Profissional',
-    enterprise: 'Empresarial',
-    admin: 'Administrador'
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
   };
 
+  const getPlanName = (plan: string) => {
+    const plans = {
+      free: 'Gratuito',
+      profissional: 'Profissional',
+      empresarial: 'Empresarial',
+      admin: 'Administrador'
+    };
+    return plans[plan as keyof typeof plans] || plan;
+  };
+
+  const getPlanColor = (plan: string) => {
+    const colors = {
+      free: 'bg-gray-500',
+      profissional: 'bg-blue-500',
+      empresarial: 'bg-purple-500',
+      admin: 'bg-red-500'
+    };
+    return colors[plan as keyof typeof colors] || 'bg-gray-500';
+  };
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <p className="text-gray-600 dark:text-gray-400">Carregando perfil...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/dashboard')}
-            className="border-slate-600 text-slate-300 hover:bg-slate-700"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-white">Configurações do Perfil</h1>
-            <p className="text-slate-300">Gerencie suas informações pessoais</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-semibold text-blue-600 dark:text-blue-400">
+                FlowServ
+              </h1>
+              <span className="ml-4 text-gray-600 dark:text-gray-400">Configurações</span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <ThemeToggle />
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate('/dashboard')}
+                className="text-gray-600 dark:text-gray-400"
+              >
+                Dashboard
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={handleSignOut}
+                className="text-red-600 dark:text-red-400"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sair
+              </Button>
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* Formulário de Perfil */}
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Informações Pessoais
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="h-4 bg-slate-700 rounded w-1/4 mb-2"></div>
-                    <div className="h-10 bg-slate-700 rounded"></div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <form onSubmit={handleSave} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Main Content */}
+      <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Profile Form */}
+          <div className="lg:col-span-2">
+            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                  <User className="h-5 w-5 mr-2" />
+                  Informações Pessoais
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSave} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="nome_completo" className="text-slate-300">
+                    <Label htmlFor="nome_completo" className="text-gray-700 dark:text-gray-300">
                       Nome Completo
                     </Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input
-                        id="nome_completo"
-                        name="nome_completo"
-                        value={formData.nome_completo}
-                        onChange={handleInputChange}
-                        className="pl-10 bg-slate-700 border-slate-600 text-white"
-                        placeholder="Seu nome completo"
-                      />
-                    </div>
+                    <Input
+                      id="nome_completo"
+                      value={formData.nome_completo}
+                      onChange={(e) => setFormData({ ...formData, nome_completo: e.target.value })}
+                      className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                    />
                   </div>
-
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-slate-300">
+                    <Label htmlFor="email" className="text-gray-700 dark:text-gray-300">
                       Email
                     </Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className="pl-10 bg-slate-700 border-slate-600 text-white"
-                        placeholder="seu@email.com"
-                        readOnly
-                      />
-                    </div>
-                    <p className="text-xs text-slate-400">
-                      O email não pode ser alterado após o cadastro.
+                    <Input
+                      id="email"
+                      value={formData.email}
+                      disabled
+                      className="bg-gray-100 dark:bg-gray-600 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      O email não pode ser alterado
                     </p>
                   </div>
-
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="empresa" className="text-slate-300">
+                    <Label htmlFor="empresa" className="text-gray-700 dark:text-gray-300">
                       Empresa
                     </Label>
-                    <div className="relative">
-                      <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input
-                        id="empresa"
-                        name="empresa"
-                        value={formData.empresa}
-                        onChange={handleInputChange}
-                        className="pl-10 bg-slate-700 border-slate-600 text-white"
-                        placeholder="Nome da empresa"
-                      />
-                    </div>
+                    <Input
+                      id="empresa"
+                      value={formData.empresa}
+                      onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
+                      className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                    />
                   </div>
-
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="telefone" className="text-slate-300">
+                    <Label htmlFor="telefone" className="text-gray-700 dark:text-gray-300">
                       Telefone
                     </Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input
-                        id="telefone"
-                        name="telefone"
-                        value={formData.telefone}
-                        onChange={handleInputChange}
-                        className="pl-10 bg-slate-700 border-slate-600 text-white"
-                        placeholder="(11) 99999-9999"
-                      />
-                    </div>
+                    <Input
+                      id="telefone"
+                      value={formData.telefone}
+                      onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                      placeholder="(11) 99999-9999"
+                      className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                    />
                   </div>
-                </div>
-
-                {/* Informações do Plano */}
-                <div className="bg-slate-700/30 rounded-lg p-4">
-                  <h3 className="text-white font-semibold mb-2">Plano Atual</h3>
-                  <p className="text-slate-300">
-                    {planLabels[formData.plano_ativo as keyof typeof planLabels] || 'Gratuito'}
-                  </p>
-                  {formData.plano_ativo === 'free' && (
-                    <p className="text-slate-400 text-sm mt-1">
-                      Faça upgrade para acessar recursos avançados
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsapp" className="text-gray-700 dark:text-gray-300">
+                      WhatsApp para Notificações
+                    </Label>
+                    <Input
+                      id="whatsapp"
+                      value={formData.whatsapp}
+                      onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                      placeholder="(11) 99999-9999"
+                      className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Disponível apenas em planos pagos
                     </p>
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {isLoading ? 'Salvando...' : 'Salvar Alterações'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Plan Info */}
+            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Plano Atual
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center space-y-4">
+                  <Badge className={`${getPlanColor(profile.plano_ativo)} text-white text-lg px-4 py-2`}>
+                    {getPlanName(profile.plano_ativo)}
+                  </Badge>
+                  
+                  {profile.plano_ativo !== 'empresarial' && profile.plano_ativo !== 'admin' && (
+                    <Button 
+                      onClick={() => setShowUpgradeModal(true)}
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                    >
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Fazer Upgrade
+                    </Button>
                   )}
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="flex justify-end">
-                  <Button
-                    type="submit"
-                    disabled={isSaving}
-                    className="bg-blue-600 hover:bg-blue-700"
+            {/* Quick Actions */}
+            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-gray-900 dark:text-white">Ações Rápidas</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                  onClick={() => navigate('/dashboard')}
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Voltar ao Dashboard
+                </Button>
+                
+                {profile.plano_ativo === 'admin' && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                    onClick={() => navigate('/admin')}
                   >
-                    <Save className="h-4 w-4 mr-2" />
-                    {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+                    <Building className="h-4 w-4 mr-2" />
+                    Painel Admin
                   </Button>
-                </div>
-              </form>
-            )}
-          </CardContent>
-        </Card>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </main>
 
-        {/* Informações da Conta */}
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white">Informações da Conta</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-300">ID da Conta</span>
-                <span className="text-slate-400 font-mono text-sm">{user?.id}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-300">Data de Criação</span>
-                <span className="text-slate-400">
-                  {user?.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : 'N/A'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-300">Email Verificado</span>
-                <span className={`text-sm ${user?.email_confirmed_at ? 'text-green-400' : 'text-yellow-400'}`}>
-                  {user?.email_confirmed_at ? 'Verificado' : 'Pendente'}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Footer />
+
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        currentPlan={profile.plano_ativo}
+      />
     </div>
   );
 };

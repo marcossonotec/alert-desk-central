@@ -1,30 +1,34 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Monitor, Shield, Zap, Users, ArrowRight, CheckCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Server, Shield, Bell, BarChart3, Check } from 'lucide-react';
+import ThemeToggle from '@/components/ThemeToggle';
+import Footer from '@/components/Footer';
 
 const Landing = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       {/* Header */}
-      <header className="border-b border-slate-700 bg-slate-800/50 backdrop-blur-sm">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-2">
-              <Monitor className="h-8 w-8 text-blue-400" />
-              <span className="text-2xl font-bold text-white">FlowServ</span>
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                FlowServ
+              </h1>
             </div>
             <div className="flex items-center space-x-4">
+              <ThemeToggle />
               <Link to="/login">
-                <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
+                <Button variant="ghost" className="text-gray-600 dark:text-gray-400">
                   Entrar
                 </Button>
               </Link>
               <Link to="/register">
-                <Button className="bg-blue-600 hover:bg-blue-700">
-                  Começar Agora
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                  Começar Grátis
                 </Button>
               </Link>
             </div>
@@ -32,235 +36,217 @@ const Landing = () => {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-6xl font-bold text-white mb-6">
-            Monitore seus servidores
-            <span className="block text-blue-400">em tempo real</span>
-          </h1>
-          <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-            Plataforma completa de monitoramento de servidores com alertas inteligentes, 
-            métricas em tempo real e integração com principais provedores de cloud.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/register">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-3">
-                Começar Gratuitamente
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-            <Link to="/login">
-              <Button size="lg" variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700 text-lg px-8 py-3">
-                Demo Admin
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-white mb-4">Recursos Principais</h2>
-            <p className="text-slate-300 text-lg">Tudo que você precisa para monitorar sua infraestrutura</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <Monitor className="h-12 w-12 text-blue-400 mb-4" />
-                <CardTitle className="text-white">Monitoramento em Tempo Real</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Acompanhe CPU, memória, disco e rede dos seus servidores 24/7
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <Shield className="h-12 w-12 text-green-400 mb-4" />
-                <CardTitle className="text-white">Alertas Inteligentes</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Receba notificações por email e WhatsApp quando algo não estiver certo
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <Zap className="h-12 w-12 text-yellow-400 mb-4" />
-                <CardTitle className="text-white">Integração Cloud</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Suporte para Hetzner, AWS, DigitalOcean e outros provedores
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <Users className="h-12 w-12 text-purple-400 mb-4" />
-                <CardTitle className="text-white">Multi-tenant</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Perfeito para agências que gerenciam múltiplos clientes
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <CheckCircle className="h-12 w-12 text-blue-400 mb-4" />
-                <CardTitle className="text-white">Dashboard Completo</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Interface intuitiva com métricas e gráficos em tempo real
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <Shield className="h-12 w-12 text-red-400 mb-4" />
-                <CardTitle className="text-white">Segurança Avançada</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Dados criptografados e acesso controlado por usuário
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-white mb-4">Planos e Preços</h2>
-            <p className="text-slate-300 text-lg">Escolha o plano ideal para suas necessidades</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-white text-2xl">Gratuito</CardTitle>
-                <CardDescription className="text-slate-400">Perfeito para começar</CardDescription>
-                <div className="text-3xl font-bold text-white mt-4">
-                  R$ 0<span className="text-lg font-normal text-slate-400">/mês</span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3 text-slate-300">
-                  <li className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-                    Até 3 servidores
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-                    Métricas básicas
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-                    Alertas por email
-                  </li>
-                </ul>
-                <Link to="/register" className="block mt-6">
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                    Começar Grátis
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-slate-800/50 border-blue-500 border-2 relative">
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-1 rounded-full text-sm">
-                Mais Popular
-              </div>
-              <CardHeader>
-                <CardTitle className="text-white text-2xl">Profissional</CardTitle>
-                <CardDescription className="text-slate-400">Para empresas em crescimento</CardDescription>
-                <div className="text-3xl font-bold text-white mt-4">
-                  R$ 29<span className="text-lg font-normal text-slate-400">/mês</span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3 text-slate-300">
-                  <li className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-                    Até 20 servidores
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-                    Métricas avançadas
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-                    Alertas WhatsApp
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-                    Suporte prioritário
-                  </li>
-                </ul>
-                <Link to="/register" className="block mt-6">
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                    Assinar Agora
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-white text-2xl">Empresarial</CardTitle>
-                <CardDescription className="text-slate-400">Para grandes organizações</CardDescription>
-                <div className="text-3xl font-bold text-white mt-4">
-                  R$ 99<span className="text-lg font-normal text-slate-400">/mês</span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3 text-slate-300">
-                  <li className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-                    Servidores ilimitados
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-                    API completa
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-                    Multi-tenant
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-                    Suporte 24/7
-                  </li>
-                </ul>
-                <Link to="/register" className="block mt-6">
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                    Falar com Vendas
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-slate-800/50 border-t border-slate-700 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <Monitor className="h-8 w-8 text-blue-400" />
-              <span className="text-2xl font-bold text-white">FlowServ</span>
-            </div>
-            <p className="text-slate-400">
-              © 2024 FlowServ. Todos os direitos reservados.
+      {/* Main Content */}
+      <main className="flex-1">
+        {/* Hero Section */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
+              Monitore seus servidores com{' '}
+              <span className="text-blue-600 dark:text-blue-400">inteligência</span>
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-3xl mx-auto">
+              Tenha controle total sobre seus servidores na nuvem com alertas em tempo real, 
+              métricas avançadas e notificações inteligentes.
             </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link to="/register">
+                <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3">
+                  Começar Grátis por 7 dias
+                </Button>
+              </Link>
+              <Link to="/login">
+                <Button size="lg" variant="outline" className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-8 py-3">
+                  Fazer Login
+                </Button>
+              </Link>
+            </div>
           </div>
-        </div>
-      </footer>
+        </section>
+
+        {/* Features */}
+        <section className="py-20 bg-white dark:bg-gray-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                Recursos Poderosos
+              </h3>
+              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                Tudo que você precisa para manter seus servidores funcionando perfeitamente
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <Card className="bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+                <CardHeader>
+                  <Server className="h-10 w-10 text-blue-600 dark:text-blue-400 mb-4" />
+                  <CardTitle className="text-gray-900 dark:text-white">Monitoramento</CardTitle>
+                  <CardDescription className="text-gray-600 dark:text-gray-400">
+                    Acompanhe CPU, memória, disco e rede em tempo real
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card className="bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+                <CardHeader>
+                  <Bell className="h-10 w-10 text-blue-600 dark:text-blue-400 mb-4" />
+                  <CardTitle className="text-gray-900 dark:text-white">Alertas Inteligentes</CardTitle>
+                  <CardDescription className="text-gray-600 dark:text-gray-400">
+                    Receba notificações por email e WhatsApp quando necessário
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card className="bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+                <CardHeader>
+                  <BarChart3 className="h-10 w-10 text-blue-600 dark:text-blue-400 mb-4" />
+                  <CardTitle className="text-gray-900 dark:text-white">Relatórios</CardTitle>
+                  <CardDescription className="text-gray-600 dark:text-gray-400">
+                    Gráficos e métricas detalhadas para análise
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card className="bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+                <CardHeader>
+                  <Shield className="h-10 w-10 text-blue-600 dark:text-blue-400 mb-4" />
+                  <CardTitle className="text-gray-900 dark:text-white">Segurança</CardTitle>
+                  <CardDescription className="text-gray-600 dark:text-gray-400">
+                    Dados protegidos e conformidade garantida
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* Pricing */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16">
+              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                Planos que se adaptam ao seu negócio
+              </h3>
+              <p className="text-lg text-gray-600 dark:text-gray-400">
+                Comece grátis e escale conforme necessário
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {/* Free Plan */}
+              <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle className="text-center text-gray-900 dark:text-white">Gratuito</CardTitle>
+                  <div className="text-center">
+                    <span className="text-3xl font-bold text-gray-900 dark:text-white">Grátis</span>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">por 7 dias</p>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-3 mb-6">
+                    <li className="flex items-center text-gray-700 dark:text-gray-300">
+                      <Check className="h-4 w-4 text-green-500 mr-2" />
+                      Até 1 servidor
+                    </li>
+                    <li className="flex items-center text-gray-700 dark:text-gray-300">
+                      <Check className="h-4 w-4 text-green-500 mr-2" />
+                      Métricas básicas
+                    </li>
+                    <li className="flex items-center text-gray-700 dark:text-gray-300">
+                      <Check className="h-4 w-4 text-green-500 mr-2" />
+                      Alertas por email
+                    </li>
+                  </ul>
+                  <Link to="/register" className="block">
+                    <Button className="w-full bg-gray-600 hover:bg-gray-700 text-white">
+                      Começar Grátis
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+
+              {/* Pro Plan */}
+              <Card className="relative bg-white dark:bg-gray-800 border-blue-500 dark:border-blue-400 shadow-lg">
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-sm">
+                    Mais Popular
+                  </span>
+                </div>
+                <CardHeader>
+                  <CardTitle className="text-center text-gray-900 dark:text-white">Profissional</CardTitle>
+                  <div className="text-center">
+                    <span className="text-3xl font-bold text-gray-900 dark:text-white">R$ 69</span>
+                    <span className="text-gray-600 dark:text-gray-400">/mês</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-3 mb-6">
+                    <li className="flex items-center text-gray-700 dark:text-gray-300">
+                      <Check className="h-4 w-4 text-green-500 mr-2" />
+                      Até 3 servidores
+                    </li>
+                    <li className="flex items-center text-gray-700 dark:text-gray-300">
+                      <Check className="h-4 w-4 text-green-500 mr-2" />
+                      Métricas avançadas
+                    </li>
+                    <li className="flex items-center text-gray-700 dark:text-gray-300">
+                      <Check className="h-4 w-4 text-green-500 mr-2" />
+                      Alertas WhatsApp
+                    </li>
+                    <li className="flex items-center text-gray-700 dark:text-gray-300">
+                      <Check className="h-4 w-4 text-green-500 mr-2" />
+                      Suporte prioritário
+                    </li>
+                  </ul>
+                  <Link to="/register" className="block">
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                      Escolher Plano
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+
+              {/* Enterprise Plan */}
+              <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle className="text-center text-gray-900 dark:text-white">Empresarial</CardTitle>
+                  <div className="text-center">
+                    <span className="text-3xl font-bold text-gray-900 dark:text-white">R$ 247</span>
+                    <span className="text-gray-600 dark:text-gray-400">/mês</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-3 mb-6">
+                    <li className="flex items-center text-gray-700 dark:text-gray-300">
+                      <Check className="h-4 w-4 text-green-500 mr-2" />
+                      Servidores ilimitados
+                    </li>
+                    <li className="flex items-center text-gray-700 dark:text-gray-300">
+                      <Check className="h-4 w-4 text-green-500 mr-2" />
+                      Recursos ilimitados
+                    </li>
+                    <li className="flex items-center text-gray-700 dark:text-gray-300">
+                      <Check className="h-4 w-4 text-green-500 mr-2" />
+                      Suporte dedicado
+                    </li>
+                    <li className="flex items-center text-gray-700 dark:text-gray-300">
+                      <Check className="h-4 w-4 text-green-500 mr-2" />
+                      SLA garantido
+                    </li>
+                  </ul>
+                  <Link to="/register" className="block">
+                    <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+                      Escolher Plano
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
     </div>
   );
 };
