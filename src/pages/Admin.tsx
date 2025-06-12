@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,7 +45,9 @@ const Admin = () => {
 
       setUserProfile(profile);
 
-      const adminAccess = profile?.plano_ativo === 'admin' || user.email === 'admin@flowserv.com.br';
+      const adminAccess = profile?.plano_ativo === 'admin' || 
+                         profile?.plano_ativo === 'empresarial' || 
+                         user.email === 'admin@flowserv.com.br';
       
       if (!adminAccess) {
         toast({

@@ -18,7 +18,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onLogout,
   userProfile,
 }) => {
-  const isAdmin = userProfile?.plano_ativo === 'admin';
+  const hasAdminAccess = userProfile?.plano_ativo === 'admin' || userProfile?.plano_ativo === 'empresarial';
 
   return (
     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -41,7 +41,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           <Plus className="h-4 w-4 mr-2" />
           Adicionar Servidor
         </Button>
-        {isAdmin && (
+        {hasAdminAccess && (
           <Button
             onClick={onGoToAdmin}
             variant="outline"

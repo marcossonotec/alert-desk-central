@@ -249,7 +249,7 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
               </h4>
               <p className="text-sm text-yellow-700 dark:text-yellow-300">
                 Os alertas serão enviados para o email da sua conta e para o número de WhatsApp configurado no seu perfil. 
-                Para receber alertas por WhatsApp, certifique-se de ter configurado uma instância Evolution API.
+                Para receber alertas por WhatsApp, certifique-se de ter configurado uma instância.
               </p>
             </div>
             

@@ -350,7 +350,7 @@ const Profile = () => {
                         Formato obrigatório: +55 (código do país) + DDD + número
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Disponível apenas em planos pagos com Evolution API configurada
+                        Disponível apenas em planos pagos
                       </p>
                     </div>
                   </div>
@@ -411,7 +411,7 @@ const Profile = () => {
                   Voltar ao Dashboard
                 </Button>
                 
-                {profile.plano_ativo === 'admin' && (
+                {(profile.plano_ativo === 'admin' || profile.plano_ativo === 'empresarial') && (
                   <Button 
                     variant="outline" 
                     className="w-full justify-start border-border text-foreground"
