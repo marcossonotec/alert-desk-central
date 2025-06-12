@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ServerConfigModal from './ServerConfigModal';
-import ServerMetrics from './ServerMetrics';
+import ServerMetricsModal from './ServerMetricsModal';
 import AlertConfigModal from './AlertConfigModal';
 
 interface ServerCardProps {
@@ -192,7 +193,7 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
               className="flex-1"
             >
               <Eye className="h-4 w-4 mr-1" />
-              Ver Métricas
+              Métricas
             </Button>
             
             <Button
@@ -247,7 +248,7 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
         onUpdate={onUpdate}
       />
 
-      <ServerMetrics
+      <ServerMetricsModal
         serverId={server.id}
         serverName={server.nome}
         isOpen={showMetricsModal}

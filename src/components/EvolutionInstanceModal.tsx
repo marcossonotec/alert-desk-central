@@ -31,9 +31,7 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [formData, setFormData] = useState({
-    instance_name: '',
-    api_url: '',
-    api_key: ''
+    instance_name: ''
   });
   const { toast } = useToast();
 
@@ -78,22 +76,18 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
     try {
       setIsLoading(true);
       
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/evolution-api?action=create-instance`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('evolution-api', {
+        body: {
+          action: 'create-instance',
           usuario_id: user?.id,
-          ...formData
-        })
+          instance_name: formData.instance_name
+        }
       });
 
-      const result = await response.json();
+      if (error) throw error;
 
-      if (!result.success) {
-        throw new Error(result.error || 'Erro ao criar instância');
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao criar instância');
       }
 
       toast({
@@ -101,7 +95,7 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
         description: "Instância WhatsApp criada com sucesso.",
       });
 
-      setFormData({ instance_name: '', api_url: '', api_key: '' });
+      setFormData({ instance_name: '' });
       setShowCreateForm(false);
       loadInstances();
     } catch (error: any) {
@@ -121,24 +115,20 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
       setIsLoading(true);
       setSelectedInstance(instance);
       
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/evolution-api?action=get-qr`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('evolution-api', {
+        body: {
+          action: 'get-qr',
           instance_id: instance.id
-        })
+        }
       });
 
-      const result = await response.json();
+      if (error) throw error;
 
-      if (!result.success) {
-        throw new Error(result.error || 'Erro ao buscar QR Code');
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao buscar QR Code');
       }
 
-      setQrCode(result.qr_code);
+      setQrCode(data.qr_code);
     } catch (error: any) {
       console.error('Erro ao buscar QR Code:', error);
       toast({
@@ -153,24 +143,20 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
 
   const checkStatus = async (instanceId: string) => {
     try {
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/evolution-api?action=check-status`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('evolution-api', {
+        body: {
+          action: 'check-status',
           instance_id: instanceId
-        })
+        }
       });
 
-      const result = await response.json();
+      if (error) throw error;
 
-      if (result.success) {
+      if (data.success) {
         loadInstances();
         toast({
           title: "Status atualizado",
-          description: `Status: ${result.status}`,
+          description: `Status: ${data.status}`,
         });
       }
     } catch (error: any) {
@@ -180,21 +166,17 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
 
   const deleteInstance = async (instanceId: string) => {
     try {
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/evolution-api?action=delete-instance`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('evolution-api', {
+        body: {
+          action: 'delete-instance',
           instance_id: instanceId
-        })
+        }
       });
 
-      const result = await response.json();
+      if (error) throw error;
 
-      if (!result.success) {
-        throw new Error(result.error || 'Erro ao deletar instância');
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao deletar instância');
       }
 
       toast({
@@ -229,7 +211,7 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-card border-border max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-card border-border max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl text-foreground">
             <MessageSquare className="h-6 w-6 text-primary" />
@@ -257,35 +239,14 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
                 <CardTitle>Criar Nova Instância</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Nome da Instância</Label>
-                    <Input
-                      value={formData.instance_name}
-                      onChange={(e) => setFormData({ ...formData, instance_name: e.target.value })}
-                      placeholder="minha-instancia"
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>URL da API</Label>
-                    <Input
-                      value={formData.api_url}
-                      onChange={(e) => setFormData({ ...formData, api_url: e.target.value })}
-                      placeholder="https://evolution-api.com"
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>API Key</Label>
-                    <Input
-                      type="password"
-                      value={formData.api_key}
-                      onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
-                      placeholder="sua-api-key"
-                      className="bg-background border-border"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label>Nome da Instância</Label>
+                  <Input
+                    value={formData.instance_name}
+                    onChange={(e) => setFormData({ instance_name: e.target.value })}
+                    placeholder="minha-instancia"
+                    className="bg-background border-border"
+                  />
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button
@@ -296,7 +257,7 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
                   </Button>
                   <Button
                     onClick={createInstance}
-                    disabled={isLoading || !formData.instance_name || !formData.api_url || !formData.api_key}
+                    disabled={isLoading || !formData.instance_name}
                   >
                     {isLoading ? 'Criando...' : 'Criar'}
                   </Button>
@@ -324,7 +285,6 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="text-sm text-muted-foreground">
-                      <p><strong>API URL:</strong> {instance.api_url}</p>
                       <p><strong>Criado em:</strong> {new Date(instance.created_at).toLocaleDateString()}</p>
                     </div>
                     

@@ -7,6 +7,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Configurações da Evolution API
+const EVOLUTION_API_URL = "https://wapi.flowserv.com.br";
+const EVOLUTION_API_KEY = "429683C4C9771504197410F7D57E11";
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -17,11 +21,9 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const url = new URL(req.url);
-    const action = url.searchParams.get('action');
-
     if (req.method === 'POST') {
       const body = await req.json();
+      const { action } = body;
 
       switch (action) {
         case 'create-instance':
@@ -40,11 +42,6 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    if (req.method === 'GET') {
-      const userId = url.searchParams.get('user_id');
-      return await getUserInstances(supabase, userId);
-    }
-
     return new Response(
       JSON.stringify({ error: 'Método não permitido' }),
       { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -60,15 +57,15 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 async function createInstance(supabase: any, body: any) {
-  const { usuario_id, instance_name, api_url, api_key } = body;
+  const { usuario_id, instance_name } = body;
 
   try {
     // Criar instância no Evolution API
-    const evolutionResponse = await fetch(`${api_url}/instance/create`, {
+    const evolutionResponse = await fetch(`${EVOLUTION_API_URL}/instance/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': api_key,
+        'apikey': EVOLUTION_API_KEY,
       },
       body: JSON.stringify({
         instanceName: instance_name,
@@ -78,8 +75,13 @@ async function createInstance(supabase: any, body: any) {
     });
 
     if (!evolutionResponse.ok) {
+      const errorText = await evolutionResponse.text();
+      console.error('Erro da Evolution API:', errorText);
       throw new Error('Erro ao criar instância no Evolution API');
     }
+
+    const evolutionData = await evolutionResponse.json();
+    console.log('Resposta da Evolution API:', evolutionData);
 
     // Salvar no banco de dados
     const { data, error } = await supabase
@@ -87,8 +89,8 @@ async function createInstance(supabase: any, body: any) {
       .insert({
         usuario_id,
         instance_name,
-        api_url,
-        api_key,
+        api_url: EVOLUTION_API_URL,
+        api_key: evolutionData.apikey || EVOLUTION_API_KEY,
         status: 'connecting'
       })
       .select()
@@ -104,7 +106,7 @@ async function createInstance(supabase: any, body: any) {
   } catch (error: any) {
     console.error('Erro ao criar instância:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
@@ -126,10 +128,10 @@ async function getQRCode(supabase: any, body: any) {
     }
 
     // Buscar QR Code no Evolution API
-    const evolutionResponse = await fetch(`${instance.api_url}/instance/connect/${instance.instance_name}`, {
+    const evolutionResponse = await fetch(`${EVOLUTION_API_URL}/instance/connect/${instance.instance_name}`, {
       method: 'GET',
       headers: {
-        'apikey': instance.api_key,
+        'apikey': EVOLUTION_API_KEY,
       },
     });
 
@@ -153,7 +155,7 @@ async function getQRCode(supabase: any, body: any) {
   } catch (error: any) {
     console.error('Erro ao buscar QR Code:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
@@ -174,10 +176,10 @@ async function checkInstanceStatus(supabase: any, body: any) {
     }
 
     // Verificar status no Evolution API
-    const evolutionResponse = await fetch(`${instance.api_url}/instance/connectionState/${instance.instance_name}`, {
+    const evolutionResponse = await fetch(`${EVOLUTION_API_URL}/instance/connectionState/${instance.instance_name}`, {
       method: 'GET',
       headers: {
-        'apikey': instance.api_key,
+        'apikey': EVOLUTION_API_KEY,
       },
     });
 
@@ -210,7 +212,7 @@ async function checkInstanceStatus(supabase: any, body: any) {
   } catch (error: any) {
     console.error('Erro ao verificar status:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
@@ -231,10 +233,10 @@ async function deleteInstance(supabase: any, body: any) {
     }
 
     // Deletar no Evolution API
-    await fetch(`${instance.api_url}/instance/delete/${instance.instance_name}`, {
+    await fetch(`${EVOLUTION_API_URL}/instance/delete/${instance.instance_name}`, {
       method: 'DELETE',
       headers: {
-        'apikey': instance.api_key,
+        'apikey': EVOLUTION_API_KEY,
       },
     });
 
@@ -252,38 +254,7 @@ async function deleteInstance(supabase: any, body: any) {
   } catch (error: any) {
     console.error('Erro ao deletar instância:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-    );
-  }
-}
-
-async function getUserInstances(supabase: any, userId: string | null) {
-  if (!userId) {
-    return new Response(
-      JSON.stringify({ error: 'User ID obrigatório' }),
-      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-    );
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('evolution_instances')
-      .select('*')
-      .eq('usuario_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    return new Response(
-      JSON.stringify({ success: true, instances: data }),
-      { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-    );
-
-  } catch (error: any) {
-    console.error('Erro ao buscar instâncias:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
