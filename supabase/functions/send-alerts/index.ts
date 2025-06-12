@@ -22,11 +22,10 @@ const handler = async (req: Request): Promise<Response> => {
       servidor_id, 
       tipo_alerta, 
       valor_atual, 
-      limite, 
-      canais 
+      limite
     } = await req.json();
 
-    console.log('Enviando alertas:', { alerta_id, servidor_id, tipo_alerta, valor_atual, limite, canais });
+    console.log('Enviando alertas:', { alerta_id, servidor_id, tipo_alerta, valor_atual, limite });
 
     // Buscar informações do servidor e usuário
     const { data: servidor, error: serverError } = await supabase
@@ -36,7 +35,7 @@ const handler = async (req: Request): Promise<Response> => {
         profiles (
           email,
           nome_completo,
-          telefone
+          whatsapp
         )
       `)
       .eq('id', servidor_id)
@@ -50,42 +49,61 @@ const handler = async (req: Request): Promise<Response> => {
 
     const results = [];
 
-    // Enviar por email se configurado
-    if (canais.includes('email')) {
-      try {
-        const emailResult = await sendEmailAlert(servidor.profiles.email, mensagem, servidor);
-        results.push({ canal: 'email', status: 'enviado', resultado: emailResult });
-        
-        // Registrar notificação
-        await supabase.from('notificacoes').insert({
-          alerta_id,
-          servidor_id,
-          canal: 'email',
-          destinatario: servidor.profiles.email,
-          mensagem,
-          status: 'enviado'
-        });
-      } catch (error) {
-        console.error('Erro ao enviar email:', error);
-        results.push({ canal: 'email', status: 'erro', erro: error.message });
-      }
+    // Enviar por email sempre
+    try {
+      const emailResult = await sendEmailAlert(servidor.profiles.email, mensagem, servidor);
+      results.push({ canal: 'email', status: 'enviado', resultado: emailResult });
+      
+      // Registrar notificação
+      await supabase.from('notificacoes').insert({
+        alerta_id,
+        servidor_id,
+        canal: 'email',
+        destinatario: servidor.profiles.email,
+        mensagem,
+        status: 'enviado'
+      });
+    } catch (error) {
+      console.error('Erro ao enviar email:', error);
+      results.push({ canal: 'email', status: 'erro', erro: error.message });
     }
 
-    // Enviar por WhatsApp se configurado
-    if (canais.includes('whatsapp') && servidor.profiles.telefone) {
+    // Enviar por WhatsApp se configurado no perfil
+    if (servidor.profiles.whatsapp) {
       try {
-        const whatsappResult = await sendWhatsAppAlert(servidor.profiles.telefone, mensagem);
-        results.push({ canal: 'whatsapp', status: 'enviado', resultado: whatsappResult });
-        
-        // Registrar notificação
-        await supabase.from('notificacoes').insert({
-          alerta_id,
-          servidor_id,
-          canal: 'whatsapp',
-          destinatario: servidor.profiles.telefone,
-          mensagem,
-          status: 'enviado'
-        });
+        // Buscar instância Evolution conectada do usuário
+        const { data: instance } = await supabase
+          .from('evolution_instances')
+          .select('*')
+          .eq('usuario_id', servidor.usuario_id)
+          .eq('status', 'connected')
+          .limit(1)
+          .single();
+
+        if (instance) {
+          const whatsappResult = await sendWhatsAppAlert(
+            servidor.profiles.whatsapp, 
+            mensagem, 
+            instance
+          );
+          results.push({ canal: 'whatsapp', status: 'enviado', resultado: whatsappResult });
+          
+          // Registrar notificação
+          await supabase.from('notificacoes').insert({
+            alerta_id,
+            servidor_id,
+            canal: 'whatsapp',
+            destinatario: servidor.profiles.whatsapp,
+            mensagem,
+            status: 'enviado'
+          });
+        } else {
+          results.push({ 
+            canal: 'whatsapp', 
+            status: 'erro', 
+            erro: 'Nenhuma instância Evolution conectada' 
+          });
+        }
       } catch (error) {
         console.error('Erro ao enviar WhatsApp:', error);
         results.push({ canal: 'whatsapp', status: 'erro', erro: error.message });
@@ -149,7 +167,7 @@ async function sendEmailAlert(email: string, mensagem: string, servidor: any) {
           </div>
           
           <p style="margin-top: 20px; color: #6b7280; font-size: 14px;">
-            Este é um alerta automático do sistema DeskTools de monitoramento de servidores.
+            Este é um alerta automático do sistema FlowServ de monitoramento de servidores.
           </p>
         </div>
       `,
@@ -164,25 +182,20 @@ async function sendEmailAlert(email: string, mensagem: string, servidor: any) {
   return await response.json();
 }
 
-async function sendWhatsAppAlert(telefone: string, mensagem: string) {
-  const whatsappApiKey = Deno.env.get('WHATSAPP_API_KEY');
-  const whatsappApiUrl = Deno.env.get('WHATSAPP_API_URL');
-  
-  if (!whatsappApiKey || !whatsappApiUrl) {
-    throw new Error('Configurações do WhatsApp não encontradas');
-  }
+async function sendWhatsAppAlert(telefone: string, mensagem: string, instance: any) {
+  // Formatar número removendo caracteres especiais e garantindo formato correto
+  const numeroLimpo = telefone.replace(/\D/g, '');
+  const numeroFormatado = numeroLimpo + '@s.whatsapp.net';
 
-  // Exemplo usando uma API genérica de WhatsApp (ajuste conforme seu provedor)
-  const response = await fetch(`${whatsappApiUrl}/send-message`, {
+  const response = await fetch(`${instance.api_url}/message/sendText/${instance.instance_name}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${whatsappApiKey}`,
+      'apikey': instance.api_key,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      phone: telefone,
-      message: mensagem,
-      type: 'text'
+      number: numeroFormatado,
+      text: mensagem
     }),
   });
 

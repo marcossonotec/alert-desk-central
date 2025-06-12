@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import UpgradeModal from '@/components/UpgradeModal';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DashboardSidebarProps {
   userProfile: any;
@@ -29,7 +30,29 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   onOpenWhatsApp,
 }) => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [connectedWhatsAppCount, setConnectedWhatsAppCount] = useState(0);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    loadWhatsAppInstances();
+  }, []);
+
+  const loadWhatsAppInstances = async () => {
+    if (!userProfile?.id) return;
+
+    try {
+      const { data: instances, error } = await supabase
+        .from('evolution_instances')
+        .select('*')
+        .eq('usuario_id', userProfile.id)
+        .eq('status', 'connected');
+
+      if (error) throw error;
+      setConnectedWhatsAppCount(instances?.length || 0);
+    } catch (error) {
+      console.error('Erro ao carregar instâncias WhatsApp:', error);
+    }
+  };
 
   const getPlanInfo = (plan: string) => {
     switch (plan) {
@@ -66,7 +89,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
 
   const planInfo = getPlanInfo(userProfile?.plano_ativo || 'free');
 
-  const handleConfigureEmail = () => {
+  const handleConfigureProfile = () => {
     navigate('/profile');
   };
 
@@ -139,6 +162,16 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                 <Badge className={planInfo.color}>
                   {planInfo.name}
                 </Badge>
+                {userProfile?.plano_ativo !== 'empresarial' && userProfile?.plano_ativo !== 'admin' && (
+                  <Button 
+                    size="sm"
+                    onClick={() => setShowUpgradeModal(true)}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                  >
+                    <ArrowUp className="h-3 w-3 mr-1" />
+                    Upgrade
+                  </Button>
+                )}
               </div>
               
               <div className="space-y-3">
@@ -158,20 +191,10 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                     <span className="text-sm">WhatsApp</span>
                   </div>
                   <span className="text-sm font-medium">
-                    0/{planInfo.whatsappInstances}
+                    {connectedWhatsAppCount}/{planInfo.whatsappInstances}
                   </span>
                 </div>
               </div>
-              
-              {userProfile?.plano_ativo !== 'empresarial' && (
-                <Button 
-                  onClick={() => setShowUpgradeModal(true)}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  <ArrowUp className="h-4 w-4 mr-2" />
-                  Fazer Upgrade
-                </Button>
-              )}
             </CardContent>
           </Card>
 
@@ -192,8 +215,8 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               </div>
               
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Último Login</span>
-                <span className="font-medium text-sm">Agora</span>
+                <span className="text-sm text-muted-foreground">WhatsApp Conectado</span>
+                <span className="font-medium">{connectedWhatsAppCount > 0 ? 'Sim' : 'Não'}</span>
               </div>
             </CardContent>
           </Card>
@@ -207,9 +230,9 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               <Button 
                 variant="outline" 
                 className="w-full justify-start"
-                onClick={handleConfigureEmail}
+                onClick={handleConfigureProfile}
               >
-                <Mail className="h-4 w-4 mr-2" />
+                <Settings className="h-4 w-4 mr-2" />
                 Configurar Perfil
               </Button>
               
@@ -222,7 +245,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                 Configurar WhatsApp
               </Button>
               
-              {userProfile?.plano_ativo !== 'empresarial' && (
+              {userProfile?.plano_ativo !== 'empresarial' && userProfile?.plano_ativo !== 'admin' && (
                 <Button 
                   onClick={() => setShowUpgradeModal(true)}
                   variant="outline" 

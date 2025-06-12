@@ -11,8 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertTriangle, Cpu, HardDrive, MemoryStick, Mail, MessageSquare } from 'lucide-react';
+import { AlertTriangle, Cpu, HardDrive, MemoryStick } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -33,7 +32,6 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
   onUpdate,
 }) => {
   const [alerts, setAlerts] = useState<any[]>([]);
-  const [evolutionInstances, setEvolutionInstances] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const { toast } = useToast();
@@ -64,16 +62,7 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
 
       if (alertsError) throw alertsError;
 
-      // Buscar instâncias Evolution API
-      const { data: instancesData, error: instancesError } = await supabase
-        .from('evolution_instances')
-        .select('*')
-        .eq('usuario_id', currentUser.id);
-
-      if (instancesError) throw instancesError;
-
       setAlerts(alertsData || []);
-      setEvolutionInstances(instancesData || []);
 
       // Se não há alertas, criar os padrões
       if (!alertsData || alertsData.length === 0) {
@@ -167,13 +156,22 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
     return colors[tipo as keyof typeof colors] || 'text-gray-500';
   };
 
+  const getAlertName = (tipo: string) => {
+    const names = {
+      cpu: 'CPU',
+      memoria: 'Memória',
+      disco: 'Disco'
+    };
+    return names[tipo as keyof typeof names] || tipo;
+  };
+
   if (!server?.id) {
     return null;
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-card border-border max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl text-foreground">
             <AlertTriangle className="h-6 w-6 text-primary" />
@@ -187,6 +185,16 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
           </div>
         ) : (
           <div className="space-y-6">
+            <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
+                💡 Como funciona
+              </h4>
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                Configure os limites de alerta para cada métrica. Quando os valores ultrapassarem os limites definidos, 
+                você receberá notificações no email cadastrado e no WhatsApp configurado no seu perfil.
+              </p>
+            </div>
+
             {/* Configuração de Alertas */}
             <Card className="bg-card/50 border-border">
               <CardHeader>
@@ -203,7 +211,7 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
                         <div className={getAlertColor(alert.tipo_alerta)}>
                           {getAlertIcon(alert.tipo_alerta)}
                         </div>
-                        <span className="font-medium capitalize">{alert.tipo_alerta}</span>
+                        <span className="font-medium">{getAlertName(alert.tipo_alerta)}</span>
                       </div>
                       <Switch
                         checked={alert.ativo}
@@ -213,91 +221,37 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
                       />
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Limite (%)</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          max="100"
-                          value={alert.limite_valor}
-                          onChange={(e) => 
-                            updateAlert(alert.id, { limite_valor: parseInt(e.target.value) })
-                          }
-                          className="bg-background border-border"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label>Instância WhatsApp</Label>
-                        <Select
-                          value={alert.evolution_instance_id || ''}
-                          onValueChange={(value) => 
-                            updateAlert(alert.id, { 
-                              evolution_instance_id: value || null,
-                              canal_notificacao: value ? ['email', 'whatsapp'] : ['email']
-                            })
-                          }
-                        >
-                          <SelectTrigger className="bg-background border-border">
-                            <SelectValue placeholder="Selecionar instância..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">Apenas Email</SelectItem>
-                            {evolutionInstances
-                              .filter(instance => instance.status === 'connected')
-                              .map((instance) => (
-                                <SelectItem key={instance.id} value={instance.id}>
-                                  {instance.instance_name}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4 flex items-center space-x-4 text-sm text-muted-foreground">
-                      <div className="flex items-center space-x-1">
-                        <Mail className="h-4 w-4" />
-                        <span>Email</span>
-                      </div>
-                      {alert.evolution_instance_id && (
-                        <div className="flex items-center space-x-1">
-                          <MessageSquare className="h-4 w-4" />
-                          <span>WhatsApp</span>
-                        </div>
-                      )}
+                    <div className="space-y-2">
+                      <Label>Limite de Alerta (%)</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={alert.limite_valor}
+                        onChange={(e) => 
+                          updateAlert(alert.id, { limite_valor: parseInt(e.target.value) })
+                        }
+                        className="bg-background border-border"
+                        placeholder="Ex: 80"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Alerta será enviado quando {getAlertName(alert.tipo_alerta).toLowerCase()} ultrapassar este valor
+                      </p>
                     </div>
                   </div>
                 ))}
               </CardContent>
             </Card>
 
-            {/* Instâncias WhatsApp */}
-            {evolutionInstances.length === 0 && (
-              <Card className="bg-yellow-50 border-yellow-200">
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <MessageSquare className="h-12 w-12 text-yellow-600 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-yellow-800 mb-2">
-                      Nenhuma instância WhatsApp configurada
-                    </h3>
-                    <p className="text-yellow-700 mb-4">
-                      Configure uma instância WhatsApp para receber alertas via WhatsApp.
-                    </p>
-                    <Button
-                      onClick={() => {
-                        onClose();
-                        // Aqui você pode abrir o modal de configuração do WhatsApp
-                      }}
-                      className="bg-yellow-600 hover:bg-yellow-700 text-white"
-                    >
-                      Configurar WhatsApp
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">
+                📧 Configuração de Contatos
+              </h4>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                Os alertas serão enviados para o email da sua conta e para o número de WhatsApp configurado no seu perfil. 
+                Para receber alertas por WhatsApp, certifique-se de ter configurado uma instância Evolution API.
+              </p>
+            </div>
             
             <div className="flex justify-end gap-3">
               <Button
