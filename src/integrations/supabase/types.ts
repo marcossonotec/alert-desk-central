@@ -67,6 +67,152 @@ export type Database = {
           },
         ]
       }
+      aplicacao_metricas: {
+        Row: {
+          aplicacao_id: string
+          id: string
+          timestamp: string
+          tipo_metrica: string
+          valor: Json
+        }
+        Insert: {
+          aplicacao_id: string
+          id?: string
+          timestamp?: string
+          tipo_metrica: string
+          valor: Json
+        }
+        Update: {
+          aplicacao_id?: string
+          id?: string
+          timestamp?: string
+          tipo_metrica?: string
+          valor?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aplicacao_metricas_aplicacao_id_fkey"
+            columns: ["aplicacao_id"]
+            isOneToOne: false
+            referencedRelation: "aplicacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aplicacoes: {
+        Row: {
+          caminho: string | null
+          configuracao: Json
+          data_atualizacao: string
+          data_criacao: string
+          descricao: string | null
+          id: string
+          nome: string
+          porta: number | null
+          servidor_id: string
+          status: string
+          tipo_aplicacao_id: string
+          url_monitoramento: string | null
+          usuario_id: string
+        }
+        Insert: {
+          caminho?: string | null
+          configuracao?: Json
+          data_atualizacao?: string
+          data_criacao?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          porta?: number | null
+          servidor_id: string
+          status?: string
+          tipo_aplicacao_id: string
+          url_monitoramento?: string | null
+          usuario_id: string
+        }
+        Update: {
+          caminho?: string | null
+          configuracao?: Json
+          data_atualizacao?: string
+          data_criacao?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          porta?: number | null
+          servidor_id?: string
+          status?: string
+          tipo_aplicacao_id?: string
+          url_monitoramento?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aplicacoes_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicacoes_tipo_aplicacao_id_fkey"
+            columns: ["tipo_aplicacao_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_aplicacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assinatura_aplicacoes: {
+        Row: {
+          aplicacao_id: string
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          id: string
+          preco_mensal: number
+          status: string
+          tipo_aplicacao_id: string
+          usuario_id: string
+        }
+        Insert: {
+          aplicacao_id: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          preco_mensal: number
+          status?: string
+          tipo_aplicacao_id: string
+          usuario_id: string
+        }
+        Update: {
+          aplicacao_id?: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          preco_mensal?: number
+          status?: string
+          tipo_aplicacao_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assinatura_aplicacoes_aplicacao_id_fkey"
+            columns: ["aplicacao_id"]
+            isOneToOne: false
+            referencedRelation: "aplicacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assinatura_aplicacoes_tipo_aplicacao_id_fkey"
+            columns: ["tipo_aplicacao_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_aplicacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assinaturas: {
         Row: {
           data_criacao: string | null
@@ -376,6 +522,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tipos_aplicacao: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          preco_mensal: number
+          recursos: Json
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          preco_mensal: number
+          recursos?: Json
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          preco_mensal?: number
+          recursos?: Json
+        }
+        Relationships: []
       }
     }
     Views: {

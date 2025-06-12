@@ -11,6 +11,7 @@ import ActiveAlerts from '@/components/dashboard/ActiveAlerts';
 import DashboardSidebar from '@/components/dashboard/DashboardSidebar';
 import AddServerModal from '@/components/AddServerModal';
 import EvolutionInstanceModal from '@/components/EvolutionInstanceModal';
+import ApplicationsList from '@/components/ApplicationsList';
 
 const Dashboard = () => {
   const [servers, setServers] = useState<any[]>([]);
@@ -136,6 +137,11 @@ const Dashboard = () => {
               servers={servers}
               onUpdate={loadData}
               onAddServer={() => setShowAddModal(true)}
+            />
+
+            <ApplicationsList 
+              servers={servers}
+              onUpdate={loadData}
             />
 
             <ActiveAlerts alerts={alerts} />
