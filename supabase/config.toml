@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.create-subscription]
 verify_jwt = true
+
+[functions.evolution-api]
+verify_jwt = false

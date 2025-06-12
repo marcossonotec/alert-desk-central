@@ -1,79 +1,80 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Server, Plus, Settings, Bell, BarChart3, User, LogOut } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
-import ThemeToggle from '@/components/ThemeToggle';
-import Footer from '@/components/Footer';
-import AddServerModal from '@/components/AddServerModal';
+import { 
+  Server, 
+  Plus, 
+  Activity, 
+  AlertTriangle, 
+  TrendingUp,
+  MessageSquare
+} from 'lucide-react';
 import ServerCard from '@/components/ServerCard';
+import AddServerModal from '@/components/AddServerModal';
+import EvolutionInstanceModal from '@/components/EvolutionInstanceModal';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Dashboard = () => {
-  const { user, signOut } = useAuth();
-  const { toast } = useToast();
-  const navigate = useNavigate();
   const [servers, setServers] = useState<any[]>([]);
-  const [profile, setProfile] = useState<any>(null);
+  const [metrics, setMetrics] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAddServerModalOpen, setIsAddServerModalOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
-      loadUserData();
-    }
-  }, [user]);
+    loadData();
+  }, []);
 
-  const loadUserData = async () => {
-    if (!user) return;
-
+  const loadData = async () => {
     try {
-      // Carregar perfil do usuário
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      setIsLoading(true);
+      
+      // Buscar usuário atual
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser);
 
-      if (profileError) throw profileError;
-      setProfile(profileData);
+      if (!currentUser) return;
 
-      // Carregar servidores do usuário com métricas mais recentes
+      // Buscar servidores do usuário
       const { data: serversData, error: serversError } = await supabase
         .from('servidores')
-        .select(`
-          *,
-          metricas (
-            cpu_usage,
-            memoria_usage,
-            disco_usage,
-            timestamp
-          )
-        `)
-        .eq('usuario_id', user.id)
+        .select('*')
+        .eq('usuario_id', currentUser.id)
         .order('data_criacao', { ascending: false });
 
       if (serversError) throw serversError;
 
-      // Ordenar métricas por timestamp descendente para cada servidor
-      const serversWithSortedMetrics = (serversData || []).map(server => ({
-        ...server,
-        metricas: (server.metricas || []).sort((a: any, b: any) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )
-      }));
+      // Buscar métricas mais recentes
+      const { data: metricsData, error: metricsError } = await supabase
+        .from('metricas')
+        .select('*')
+        .in('servidor_id', (serversData || []).map(s => s.id))
+        .order('timestamp', { ascending: false });
 
-      setServers(serversWithSortedMetrics);
+      if (metricsError) throw metricsError;
 
+      // Buscar alertas ativos
+      const { data: alertsData, error: alertsError } = await supabase
+        .from('alertas')
+        .select('*, servidores(nome)')
+        .eq('usuario_id', currentUser.id)
+        .eq('ativo', true);
+
+      if (alertsError) throw alertsError;
+
+      setServers(serversData || []);
+      setMetrics(metricsData || []);
+      setAlerts(alertsData || []);
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
       toast({
         title: "Erro ao carregar dados",
-        description: "Não foi possível carregar as informações do usuário.",
+        description: "Não foi possível carregar os dados do dashboard.",
         variant: "destructive"
       });
     } finally {
@@ -81,231 +82,210 @@ const Dashboard = () => {
     }
   };
 
-  const handleAddServer = (newServer: any) => {
-    setServers(prev => [newServer, ...prev]);
-    setIsAddServerModalOpen(false);
+  const getLatestMetricForServer = (serverId: string) => {
+    return metrics
+      .filter(m => m.servidor_id === serverId)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+  const getServerStats = () => {
+    const total = servers.length;
+    const online = servers.filter(s => s.status === 'ativo').length;
+    const offline = total - online;
+    const alerts_count = alerts.length;
+
+    return { total, online, offline, alerts_count };
   };
 
-  const getPlanName = (plan: string) => {
-    const plans = {
-      free: 'Gratuito',
-      profissional: 'Profissional', 
-      empresarial: 'Empresarial',
-      admin: 'Administrador'
-    };
-    return plans[plan as keyof typeof plans] || plan;
+  const getAverageMetrics = () => {
+    if (metrics.length === 0) return { cpu: 0, memoria: 0, disco: 0 };
+
+    const latest = {};
+    servers.forEach(server => {
+      const metric = getLatestMetricForServer(server.id);
+      if (metric) {
+        latest[server.id] = metric;
+      }
+    });
+
+    const values = Object.values(latest) as any[];
+    if (values.length === 0) return { cpu: 0, memoria: 0, disco: 0 };
+
+    const cpu = values.reduce((sum, m) => sum + (m.cpu_usage || 0), 0) / values.length;
+    const memoria = values.reduce((sum, m) => sum + (m.memoria_usage || 0), 0) / values.length;
+    const disco = values.reduce((sum, m) => sum + (m.disco_usage || 0), 0) / values.length;
+
+    return { cpu, memoria, disco };
   };
 
-  const getPlanColor = (plan: string) => {
-    const colors = {
-      free: 'bg-gray-500',
-      profissional: 'bg-blue-500',
-      empresarial: 'bg-purple-500', 
-      admin: 'bg-red-500'
-    };
-    return colors[plan as keyof typeof colors] || 'bg-gray-500';
-  };
-
-  // Verificar se é admin pelo email ou pelo plano
-  const isAdmin = user?.email === 'admin@flowserv.com.br' || profile?.plano_ativo === 'admin';
-
-  // Calcular estatísticas
-  const onlineServers = servers.filter(s => s.status === 'ativo').length;
-  const serversWithAlerts = servers.filter(s => {
-    const latestMetrics = s.metricas?.[0];
-    return latestMetrics && (
-      latestMetrics.cpu_usage > 80 || 
-      latestMetrics.memoria_usage > 90 || 
-      latestMetrics.disco_usage > 90
-    );
-  }).length;
+  const stats = getServerStats();
+  const avgMetrics = getAverageMetrics();
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Carregando dashboard...</p>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="bg-card shadow-sm border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-primary">
-                FlowServ
-              </h1>
-              <span className="ml-4 text-muted-foreground">Dashboard</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <ThemeToggle />
-              
-              {profile && (
-                <Badge className={`${getPlanColor(profile.plano_ativo)} text-white`}>
-                  {getPlanName(profile.plano_ativo)}
-                </Badge>
-              )}
-              
-              <Button 
-                variant="ghost" 
-                onClick={() => navigate('/profile')}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <User className="h-4 w-4 mr-2" />
-                Perfil
-              </Button>
-              
-              {isAdmin && (
-                <Button 
-                  variant="ghost" 
-                  onClick={() => navigate('/admin')}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Admin
-                </Button>
-              )}
-              
-              <Button 
-                variant="ghost" 
-                onClick={handleSignOut}
-                className="text-destructive hover:text-destructive/90"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sair
-              </Button>
-            </div>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-muted-foreground">Gerencie seus servidores e monitoramento</p>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setShowWhatsAppModal(true)}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              WhatsApp
+            </Button>
+            <Button 
+              onClick={() => setShowAddModal(true)}
+              className="bg-primary hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Servidor
+            </Button>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-foreground mb-2">
-            Bem-vindo, {profile?.nome_completo || 'Usuário'}!
-          </h2>
-          <p className="text-muted-foreground">
-            Monitore e gerencie seus servidores em um só lugar
-          </p>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Cards de estatísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="bg-card border-border">
             <CardContent className="p-6">
-              <div className="flex items-center">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total de Servidores</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+                </div>
                 <Server className="h-8 w-8 text-primary" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Servidores</p>
-                  <p className="text-2xl font-bold text-foreground">{servers.length}</p>
-                </div>
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="bg-card border-border">
             <CardContent className="p-6">
-              <div className="flex items-center">
-                <BarChart3 className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Online</p>
-                  <p className="text-2xl font-bold text-foreground">{onlineServers}</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Servidores Online</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.online}</p>
                 </div>
+                <Activity className="h-8 w-8 text-green-600" />
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="bg-card border-border">
             <CardContent className="p-6">
-              <div className="flex items-center">
-                <Bell className="h-8 w-8 text-yellow-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Alertas</p>
-                  <p className="text-2xl font-bold text-foreground">{serversWithAlerts}</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Alertas Ativos</p>
+                  <p className="text-2xl font-bold text-orange-600">{stats.alerts_count}</p>
                 </div>
+                <AlertTriangle className="h-8 w-8 text-orange-600" />
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="bg-card border-border">
             <CardContent className="p-6">
-              <div className="flex items-center">
-                <Settings className="h-8 w-8 text-purple-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Plano</p>
-                  <p className="text-sm font-bold text-foreground">
-                    {getPlanName(profile?.plano_ativo || 'free')}
-                  </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">CPU Média</p>
+                  <p className="text-2xl font-bold text-blue-600">{avgMetrics.cpu.toFixed(1)}%</p>
                 </div>
+                <TrendingUp className="h-8 w-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Servers Section */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-foreground">Seus Servidores</CardTitle>
-              <Button 
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                onClick={() => setIsAddServerModalOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Servidor
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {servers.length === 0 ? (
-              <div className="text-center py-12">
+        {/* Lista de servidores */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-foreground">Seus Servidores</h2>
+            <Badge variant="secondary" className="text-sm">
+              {servers.length} servidor{servers.length !== 1 ? 'es' : ''}
+            </Badge>
+          </div>
+
+          {servers.length === 0 ? (
+            <Card className="bg-card border-border">
+              <CardContent className="py-16 text-center">
                 <Server className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">
                   Nenhum servidor cadastrado
                 </h3>
                 <p className="text-muted-foreground mb-6">
-                  Comece adicionando seu primeiro servidor para monitoramento
+                  Adicione seu primeiro servidor para começar o monitoramento.
                 </p>
-                <Button 
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                  onClick={() => setIsAddServerModalOpen(true)}
-                >
+                <Button onClick={() => setShowAddModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Adicionar Primeiro Servidor
                 </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {servers.map((server) => (
-                  <ServerCard
-                    key={server.id}
-                    server={server}
-                    onRefresh={loadUserData}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </main>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {servers.map((server) => (
+                <ServerCard
+                  key={server.id}
+                  server={server}
+                  onUpdate={loadData}
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
-      <Footer />
+        {/* Alertas recentes */}
+        {alerts.length > 0 && (
+          <div>
+            <h2 className="text-2xl font-bold text-foreground mb-6">Alertas Ativos</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {alerts.slice(0, 6).map((alert) => (
+                <Card key={alert.id} className="bg-yellow-50 border-yellow-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                      <span className="font-medium text-yellow-800 capitalize">
+                        {alert.tipo_alerta}
+                      </span>
+                    </div>
+                    <p className="text-sm text-yellow-700">
+                      {alert.servidores?.nome} - Limite: {alert.limite_valor}%
+                    </p>
+                    <div className="mt-2 text-xs text-yellow-600">
+                      Canais: {alert.canal_notificacao?.join(', ')}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
-      {/* Add Server Modal */}
+      {/* Modais */}
       <AddServerModal
-        isOpen={isAddServerModalOpen}
-        onClose={() => setIsAddServerModalOpen(false)}
-        onAddServer={handleAddServer}
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onUpdate={loadData}
+      />
+
+      <EvolutionInstanceModal
+        isOpen={showWhatsAppModal}
+        onClose={() => setShowWhatsAppModal(false)}
       />
     </div>
   );

@@ -14,6 +14,7 @@ export type Database = {
           ativo: boolean | null
           canal_notificacao: string[] | null
           data_criacao: string | null
+          evolution_instance_id: string | null
           id: string
           limite_valor: number
           servidor_id: string | null
@@ -24,6 +25,7 @@ export type Database = {
           ativo?: boolean | null
           canal_notificacao?: string[] | null
           data_criacao?: string | null
+          evolution_instance_id?: string | null
           id?: string
           limite_valor: number
           servidor_id?: string | null
@@ -34,6 +36,7 @@ export type Database = {
           ativo?: boolean | null
           canal_notificacao?: string[] | null
           data_criacao?: string | null
+          evolution_instance_id?: string | null
           id?: string
           limite_valor?: number
           servidor_id?: string | null
@@ -41,6 +44,13 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "alertas_evolution_instance_id_fkey"
+            columns: ["evolution_instance_id"]
+            isOneToOne: false
+            referencedRelation: "evolution_instances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "alertas_servidor_id_fkey"
             columns: ["servidor_id"]
@@ -113,6 +123,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      evolution_instances: {
+        Row: {
+          api_key: string
+          api_url: string
+          created_at: string | null
+          id: string
+          instance_name: string
+          qr_code: string | null
+          status: string | null
+          updated_at: string | null
+          usuario_id: string
+          webhook_url: string | null
+        }
+        Insert: {
+          api_key: string
+          api_url: string
+          created_at?: string | null
+          id?: string
+          instance_name: string
+          qr_code?: string | null
+          status?: string | null
+          updated_at?: string | null
+          usuario_id: string
+          webhook_url?: string | null
+        }
+        Update: {
+          api_key?: string
+          api_url?: string
+          created_at?: string | null
+          id?: string
+          instance_name?: string
+          qr_code?: string | null
+          status?: string | null
+          updated_at?: string | null
+          usuario_id?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
       }
       metricas: {
         Row: {
