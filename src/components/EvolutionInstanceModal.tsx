@@ -111,21 +111,25 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
 
       const { data, error } = await supabase.functions.invoke('evolution-api', {
         body: {
-          action: 'create',
-          instanceName,
-          userId: user?.id
+          action: 'create-instance',
+          usuario_id: user?.id,
+          instance_name: instanceName
         }
       });
 
       if (error) throw error;
 
       if (data.success) {
-        setQrCode(data.qrCode);
-        setQrInstanceName(instanceName);
         toast({
           title: "Instância criada",
-          description: "Escaneie o QR Code para conectar seu WhatsApp.",
+          description: "Agora vamos gerar o QR Code...",
         });
+        
+        // Aguardar um pouco e buscar o QR Code
+        setTimeout(async () => {
+          await getQRCode(data.instance.id);
+        }, 2000);
+        
         loadData();
       } else {
         throw new Error(data.error || 'Erro ao criar instância');
@@ -142,18 +146,44 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
     }
   };
 
+  const getQRCode = async (instanceId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('evolution-api', {
+        body: {
+          action: 'get-qr',
+          instance_id: instanceId
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success && data.qr_code) {
+        setQrCode(data.qr_code);
+        const instance = instances.find(i => i.id === instanceId);
+        setQrInstanceName(instance?.instance_name || '');
+        toast({
+          title: "QR Code gerado",
+          description: "Escaneie o QR Code para conectar seu WhatsApp.",
+        });
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar QR Code:', error);
+      toast({
+        title: "Erro ao gerar QR Code",
+        description: "Não foi possível gerar o QR Code.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const deleteInstance = async (instanceId: string) => {
     try {
       setIsLoading(true);
 
-      const instance = instances.find(i => i.id === instanceId);
-      if (!instance) return;
-
       const { data, error } = await supabase.functions.invoke('evolution-api', {
         body: {
-          action: 'delete',
-          instanceName: instance.instance_name,
-          userId: user?.id
+          action: 'delete-instance',
+          instance_id: instanceId
         }
       });
 
@@ -181,14 +211,10 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
     try {
       setIsLoading(true);
 
-      const instance = instances.find(i => i.id === instanceId);
-      if (!instance) return;
-
       const { data, error } = await supabase.functions.invoke('evolution-api', {
         body: {
-          action: 'status',
-          instanceName: instance.instance_name,
-          userId: user?.id
+          action: 'check-status',
+          instance_id: instanceId
         }
       });
 

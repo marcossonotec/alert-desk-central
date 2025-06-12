@@ -3,10 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { SidebarProvider } from '@/components/ui/sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardStats from '@/components/dashboard/DashboardStats';
 import ServersList from '@/components/dashboard/ServersList';
 import ActiveAlerts from '@/components/dashboard/ActiveAlerts';
+import DashboardSidebar from '@/components/dashboard/DashboardSidebar';
 import AddServerModal from '@/components/AddServerModal';
 import EvolutionInstanceModal from '@/components/EvolutionInstanceModal';
 
@@ -18,6 +20,7 @@ const Dashboard = () => {
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -33,6 +36,17 @@ const Dashboard = () => {
       setUser(currentUser);
 
       if (!currentUser) return;
+
+      // Buscar perfil do usuário
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (profileData) {
+        setUserProfile(profileData);
+      }
 
       const { data: serversData, error: serversError } = await supabase
         .from('servidores')
@@ -100,42 +114,50 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 space-y-8">
-        <DashboardHeader
-          onAddServer={() => setShowAddModal(true)}
-          onOpenWhatsApp={() => setShowWhatsAppModal(true)}
-          onGoToAdmin={goToAdmin}
-          onLogout={handleLogout}
-        />
+    <SidebarProvider>
+      <div className="min-h-screen bg-background flex w-full">
+        <div className="flex-1 flex flex-col">
+          <div className="container mx-auto px-4 py-8 space-y-8">
+            <DashboardHeader
+              onAddServer={() => setShowAddModal(true)}
+              onOpenWhatsApp={() => setShowWhatsAppModal(true)}
+              onGoToAdmin={goToAdmin}
+              onLogout={handleLogout}
+            />
 
-        <DashboardStats 
+            <DashboardStats 
+              servers={servers}
+              metrics={metrics}
+              alerts={alerts}
+              getLatestMetricForServer={getLatestMetricForServer}
+            />
+
+            <ServersList 
+              servers={servers}
+              onUpdate={loadData}
+              onAddServer={() => setShowAddModal(true)}
+            />
+
+            <ActiveAlerts alerts={alerts} />
+          </div>
+        </div>
+
+        <DashboardSidebar 
+          userProfile={userProfile}
           servers={servers}
-          metrics={metrics}
-          alerts={alerts}
-          getLatestMetricForServer={getLatestMetricForServer}
         />
 
-        <ServersList 
-          servers={servers}
-          onUpdate={loadData}
-          onAddServer={() => setShowAddModal(true)}
+        <AddServerModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
         />
 
-        <ActiveAlerts alerts={alerts} />
+        <EvolutionInstanceModal
+          isOpen={showWhatsAppModal}
+          onClose={() => setShowWhatsAppModal(false)}
+        />
       </div>
-
-      <AddServerModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onUpdate={loadData}
-      />
-
-      <EvolutionInstanceModal
-        isOpen={showWhatsAppModal}
-        onClose={() => setShowWhatsAppModal(false)}
-      />
-    </div>
+    </SidebarProvider>
   );
 };
 
