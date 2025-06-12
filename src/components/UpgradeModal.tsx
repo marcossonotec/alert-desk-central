@@ -57,7 +57,6 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
   const handleUpgrade = async (planeName: string) => {
     setIsLoading(true);
     try {
-      // Aqui você implementaria a integração com o gateway de pagamento
       toast({
         title: "Upgrade solicitado",
         description: `Solicitação de upgrade para o plano ${planeName} enviada. Você será redirecionado para o pagamento.`,
@@ -81,11 +80,25 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
     if (recursos.metricas_basicas) features.push("Métricas básicas");
     if (recursos.metricas_avancadas) features.push("Métricas avançadas");
     if (recursos.alertas_email) features.push("Alertas por email");
-    if (recursos.alertas_whatsapp) features.push("Alertas WhatsApp");
+    if (recursos.alertas_whatsapp) features.push("1 instância WhatsApp");
     if (recursos.suporte_prioritario) features.push("Suporte prioritário");
     if (recursos.duracao_dias) features.push(`${recursos.duracao_dias} dias grátis`);
     
     return features;
+  };
+
+  const getMaxServers = (plano: any) => {
+    if (plano.nome === 'free') return 1;
+    if (plano.nome === 'profissional') return 2;
+    if (plano.nome === 'empresarial') return '∞';
+    return plano.max_servidores;
+  };
+
+  const getPlanPrice = (plano: any) => {
+    if (plano.nome === 'free') return 'Grátis';
+    if (plano.nome === 'profissional') return 'R$ 99';
+    if (plano.nome === 'empresarial') return 'R$ 497';
+    return `R$ ${plano.preco_mensal}`;
   };
 
   return (
@@ -115,16 +128,18 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
               
               <CardHeader className="text-center">
                 <CardTitle className="text-gray-900 dark:text-white capitalize">
-                  {plan.nome === 'free' ? 'Gratuito' : plan.nome}
+                  {plan.nome === 'free' ? 'Gratuito' : 
+                   plan.nome === 'profissional' ? 'Profissional' : 
+                   plan.nome === 'empresarial' ? 'Empresarial' : plan.nome}
                 </CardTitle>
                 <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {plan.preco_mensal === 0 ? 'Grátis' : `R$ ${plan.preco_mensal}`}
+                  {getPlanPrice(plan)}
                   {plan.preco_mensal > 0 && (
                     <span className="text-sm text-gray-600 dark:text-gray-400">/mês</span>
                   )}
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Até {plan.max_servidores} servidor{plan.max_servidores > 1 ? 'es' : ''}
+                  Até {getMaxServers(plan)} servidor{getMaxServers(plan) !== 1 && getMaxServers(plan) !== '∞' ? 'es' : getMaxServers(plan) === '∞' ? 'es' : ''}
                 </p>
               </CardHeader>
               
@@ -146,6 +161,8 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
                       ? 'bg-gray-400 cursor-not-allowed'
                       : plan.nome === 'profissional'
                       ? 'bg-blue-600 hover:bg-blue-700'
+                      : plan.nome === 'empresarial'
+                      ? 'bg-purple-600 hover:bg-purple-700'
                       : 'bg-gray-600 hover:bg-gray-700'
                   } text-white`}
                 >

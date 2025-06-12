@@ -175,7 +175,7 @@ const Landing = () => {
                 <CardHeader>
                   <CardTitle className="text-center text-gray-900 dark:text-white">Profissional</CardTitle>
                   <div className="text-center">
-                    <span className="text-3xl font-bold text-gray-900 dark:text-white">R$ 69</span>
+                    <span className="text-3xl font-bold text-gray-900 dark:text-white">R$ 99</span>
                     <span className="text-gray-600 dark:text-gray-400">/mês</span>
                   </div>
                 </CardHeader>
@@ -183,7 +183,7 @@ const Landing = () => {
                   <ul className="space-y-3 mb-6">
                     <li className="flex items-center text-gray-700 dark:text-gray-300">
                       <Check className="h-4 w-4 text-green-500 mr-2" />
-                      Até 3 servidores
+                      Até 2 servidores
                     </li>
                     <li className="flex items-center text-gray-700 dark:text-gray-300">
                       <Check className="h-4 w-4 text-green-500 mr-2" />
@@ -191,7 +191,7 @@ const Landing = () => {
                     </li>
                     <li className="flex items-center text-gray-700 dark:text-gray-300">
                       <Check className="h-4 w-4 text-green-500 mr-2" />
-                      Alertas WhatsApp
+                      1 instância WhatsApp
                     </li>
                     <li className="flex items-center text-gray-700 dark:text-gray-300">
                       <Check className="h-4 w-4 text-green-500 mr-2" />
@@ -211,7 +211,7 @@ const Landing = () => {
                 <CardHeader>
                   <CardTitle className="text-center text-gray-900 dark:text-white">Empresarial</CardTitle>
                   <div className="text-center">
-                    <span className="text-3xl font-bold text-gray-900 dark:text-white">R$ 247</span>
+                    <span className="text-3xl font-bold text-gray-900 dark:text-white">R$ 497</span>
                     <span className="text-gray-600 dark:text-gray-400">/mês</span>
                   </div>
                 </CardHeader>
@@ -224,6 +224,10 @@ const Landing = () => {
                     <li className="flex items-center text-gray-700 dark:text-gray-300">
                       <Check className="h-4 w-4 text-green-500 mr-2" />
                       Recursos ilimitados
+                    </li>
+                    <li className="flex items-center text-gray-700 dark:text-gray-300">
+                      <Check className="h-4 w-4 text-green-500 mr-2" />
+                      1 instância WhatsApp
                     </li>
                     <li className="flex items-center text-gray-700 dark:text-gray-300">
                       <Check className="h-4 w-4 text-green-500 mr-2" />

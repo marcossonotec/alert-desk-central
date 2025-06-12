@@ -7,13 +7,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { MessageSquare, QrCode, Trash2, RefreshCw, Plus, CheckCircle, XCircle, Crown, Zap } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import CreateInstanceForm from '@/components/evolution/CreateInstanceForm';
+import InstanceList from '@/components/evolution/InstanceList';
+import QRCodeDisplay from '@/components/evolution/QRCodeDisplay';
 
 interface EvolutionInstanceModalProps {
   isOpen: boolean;
@@ -25,58 +24,53 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
   onClose,
 }) => {
   const [instances, setInstances] = useState<any[]>([]);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [selectedInstance, setSelectedInstance] = useState<any>(null);
-  const [qrCode, setQrCode] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    instance_name: ''
-  });
+  const [userPlan, setUserPlan] = useState<string>('free');
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [qrInstanceName, setQrInstanceName] = useState<string>('');
   const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen) {
-      loadInstances();
-      getCurrentUser();
+      loadData();
     }
   }, [isOpen]);
 
-  const getCurrentUser = async () => {
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    setUser(currentUser);
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser);
 
-    if (currentUser) {
-      // Buscar perfil do usuário para verificar plano
-      const { data: profile } = await supabase
+      if (!currentUser) return;
+
+      // Buscar perfil do usuário para obter o plano
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('plano_ativo')
         .eq('id', currentUser.id)
         .single();
-      
-      setUserProfile(profile);
-    }
-  };
 
-  const loadInstances = async () => {
-    try {
-      setIsLoading(true);
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      
-      const { data, error } = await supabase
+      if (profileData) {
+        setUserPlan(profileData.plano_ativo || 'free');
+      }
+
+      // Buscar instâncias existentes
+      const { data: instancesData, error } = await supabase
         .from('evolution_instances')
         .select('*')
-        .eq('usuario_id', currentUser?.id)
+        .eq('usuario_id', currentUser.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setInstances(data || []);
+      setInstances(instancesData || []);
     } catch (error: any) {
-      console.error('Erro ao carregar instâncias:', error);
+      console.error('Erro ao carregar dados:', error);
       toast({
-        title: "Erro ao carregar instâncias",
-        description: "Não foi possível carregar as instâncias WhatsApp.",
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar as instâncias.",
         variant: "destructive"
       });
     } finally {
@@ -84,26 +78,28 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
     }
   };
 
-  const canCreateInstance = () => {
-    const plan = userProfile?.plano_ativo || 'free';
-    
-    if (plan === 'free') {
-      return { allowed: false, reason: 'Plano gratuito não permite instâncias WhatsApp. Upgrade para Profissional ou Empresarial.' };
+  const getMaxInstances = () => {
+    switch (userPlan) {
+      case 'free':
+        return 0;
+      case 'profissional':
+      case 'empresarial':
+        return 1;
+      default:
+        return 0;
     }
-    
-    if (instances.length >= 1) {
-      return { allowed: false, reason: 'Limite de 1 instância WhatsApp atingido para seu plano.' };
-    }
-    
-    return { allowed: true, reason: '' };
   };
 
-  const createInstance = async () => {
-    const canCreate = canCreateInstance();
-    if (!canCreate.allowed) {
+  const canCreateInstance = () => {
+    const maxInstances = getMaxInstances();
+    return maxInstances > 0 && instances.length < maxInstances;
+  };
+
+  const createInstance = async (instanceName: string) => {
+    if (!canCreateInstance()) {
       toast({
         title: "Limite atingido",
-        description: canCreate.reason,
+        description: "Seu plano não permite criar mais instâncias.",
         variant: "destructive"
       });
       return;
@@ -111,355 +107,155 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
 
     try {
       setIsLoading(true);
-      
+      setQrCode(null);
+
       const { data, error } = await supabase.functions.invoke('evolution-api', {
         body: {
-          action: 'create-instance',
-          usuario_id: user?.id,
-          instance_name: formData.instance_name
-        }
-      });
-
-      if (error) throw error;
-
-      if (!data.success) {
-        throw new Error(data.error || 'Erro ao criar instância');
-      }
-
-      toast({
-        title: "Instância criada",
-        description: "Instância WhatsApp criada com sucesso.",
-      });
-
-      setFormData({ instance_name: '' });
-      setShowCreateForm(false);
-      loadInstances();
-    } catch (error: any) {
-      console.error('Erro ao criar instância:', error);
-      toast({
-        title: "Erro ao criar instância",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const getQRCode = async (instance: any) => {
-    try {
-      setIsLoading(true);
-      setSelectedInstance(instance);
-      
-      const { data, error } = await supabase.functions.invoke('evolution-api', {
-        body: {
-          action: 'get-qr',
-          instance_id: instance.id
-        }
-      });
-
-      if (error) throw error;
-
-      if (!data.success) {
-        throw new Error(data.error || 'Erro ao buscar QR Code');
-      }
-
-      setQrCode(data.qr_code);
-    } catch (error: any) {
-      console.error('Erro ao buscar QR Code:', error);
-      toast({
-        title: "Erro ao buscar QR Code",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const checkStatus = async (instanceId: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('evolution-api', {
-        body: {
-          action: 'check-status',
-          instance_id: instanceId
+          action: 'create',
+          instanceName,
+          userId: user?.id
         }
       });
 
       if (error) throw error;
 
       if (data.success) {
-        loadInstances();
+        setQrCode(data.qrCode);
+        setQrInstanceName(instanceName);
         toast({
-          title: "Status atualizado",
-          description: `Status: ${data.status}`,
+          title: "Instância criada",
+          description: "Escaneie o QR Code para conectar seu WhatsApp.",
         });
+        loadData();
+      } else {
+        throw new Error(data.error || 'Erro ao criar instância');
       }
     } catch (error: any) {
-      console.error('Erro ao verificar status:', error);
+      console.error('Erro ao criar instância:', error);
+      toast({
+        title: "Erro ao criar instância",
+        description: error.message || "Não foi possível criar a instância.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const deleteInstance = async (instanceId: string) => {
     try {
+      setIsLoading(true);
+
+      const instance = instances.find(i => i.id === instanceId);
+      if (!instance) return;
+
       const { data, error } = await supabase.functions.invoke('evolution-api', {
         body: {
-          action: 'delete-instance',
-          instance_id: instanceId
+          action: 'delete',
+          instanceName: instance.instance_name,
+          userId: user?.id
         }
       });
 
       if (error) throw error;
 
-      if (!data.success) {
-        throw new Error(data.error || 'Erro ao deletar instância');
-      }
-
       toast({
-        title: "Instância removida",
-        description: "Instância WhatsApp removida com sucesso.",
+        title: "Instância excluída",
+        description: "A instância foi removida com sucesso.",
       });
-
-      loadInstances();
-      setSelectedInstance(null);
-      setQrCode('');
+      
+      loadData();
     } catch (error: any) {
-      console.error('Erro ao deletar instância:', error);
+      console.error('Erro ao excluir instância:', error);
       toast({
-        title: "Erro ao remover instância",
-        description: error.message,
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir a instância.",
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    const colors = {
-      connected: 'bg-green-500',
-      connecting: 'bg-yellow-500',
-      disconnected: 'bg-gray-500',
-      error: 'bg-red-500'
-    };
-    return colors[status as keyof typeof colors] || 'bg-gray-500';
+  const refreshInstance = async (instanceId: string) => {
+    try {
+      setIsLoading(true);
+
+      const instance = instances.find(i => i.id === instanceId);
+      if (!instance) return;
+
+      const { data, error } = await supabase.functions.invoke('evolution-api', {
+        body: {
+          action: 'status',
+          instanceName: instance.instance_name,
+          userId: user?.id
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Status atualizado",
+        description: "O status da instância foi verificado.",
+      });
+      
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao atualizar status:', error);
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível verificar o status.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const getStatusIcon = (status: string) => {
-    return status === 'connected' ? CheckCircle : XCircle;
-  };
-
-  const getPlanIcon = (plan: string) => {
-    return plan === 'empresarial' ? Crown : Zap;
-  };
-
-  const canCreate = canCreateInstance();
+  const maxInstances = getMaxInstances();
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-card border-border max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-xl text-foreground">
-            <MessageSquare className="h-6 w-6 text-primary" />
-            <span>Gerenciar WhatsApp (Evolution API)</span>
+            <MessageSquare className="h-6 w-6 text-green-600" />
+            <span>Configurar WhatsApp</span>
           </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6">
-          {/* Informações do plano */}
-          {userProfile && (
-            <Card className="bg-card/50 border-border">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    {getPlanIcon(userProfile.plano_ativo) === Crown ? (
-                      <Crown className="h-5 w-5 text-yellow-600" />
-                    ) : (
-                      <Zap className="h-5 w-5 text-blue-600" />
-                    )}
-                    <span className="font-medium capitalize">Plano {userProfile.plano_ativo}</span>
-                    <span className="text-sm text-muted-foreground">
-                      - {userProfile.plano_ativo === 'free' ? '0' : '1'} instância permitida
-                    </span>
-                  </div>
-                  <Badge variant={userProfile.plano_ativo === 'free' ? 'destructive' : 'default'}>
-                    {instances.length}/1 usadas
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <CreateInstanceForm
+            onCreateInstance={createInstance}
+            isLoading={isLoading}
+            canCreateInstance={canCreateInstance()}
+            currentInstanceCount={instances.length}
+            maxInstances={maxInstances}
+          />
 
-          {/* Botão para criar nova instância */}
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium">Instâncias WhatsApp</h3>
-            <Button
-              onClick={() => setShowCreateForm(true)}
-              className="bg-primary hover:bg-primary/90"
-              disabled={!canCreate.allowed}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Instância
-            </Button>
-          </div>
+          <QRCodeDisplay qrCode={qrCode} instanceName={qrInstanceName} />
 
-          {/* Aviso de limitação */}
-          {!canCreate.allowed && (
-            <Card className="bg-yellow-50 border-yellow-200">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <MessageSquare className="h-5 w-5 text-yellow-600" />
-                  <span className="text-yellow-800">{canCreate.reason}</span>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Formulário de criação */}
-          {showCreateForm && canCreate.allowed && (
-            <Card className="bg-card/50 border-border">
-              <CardHeader>
-                <CardTitle>Criar Nova Instância</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Nome da Instância</Label>
-                  <Input
-                    value={formData.instance_name}
-                    onChange={(e) => setFormData({ instance_name: e.target.value })}
-                    placeholder="minha-instancia"
-                    className="bg-background border-border"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowCreateForm(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={createInstance}
-                    disabled={isLoading || !formData.instance_name}
-                  >
-                    {isLoading ? 'Criando...' : 'Criar'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Lista de instâncias */}
-          <div className="grid grid-cols-1 gap-4">
-            {instances.map((instance) => {
-              const StatusIcon = getStatusIcon(instance.status);
-              return (
-                <Card key={instance.id} className="bg-card/50 border-border">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{instance.instance_name}</CardTitle>
-                      <div className="flex items-center space-x-2">
-                        <Badge className={`${getStatusColor(instance.status)} text-white`}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {instance.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="text-sm text-muted-foreground">
-                      <p><strong>Criado em:</strong> {new Date(instance.created_at).toLocaleDateString()}</p>
-                    </div>
-                    
-                    <div className="flex gap-2 flex-wrap">
-                      {instance.status !== 'connected' && (
-                        <Button
-                          size="sm"
-                          onClick={() => getQRCode(instance)}
-                          disabled={isLoading}
-                        >
-                          <QrCode className="h-4 w-4 mr-1" />
-                          QR Code
-                        </Button>
-                      )}
-                      
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => checkStatus(instance.id)}
-                      >
-                        <RefreshCw className="h-4 w-4 mr-1" />
-                        Status
-                      </Button>
-                      
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => deleteInstance(instance.id)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Remover
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          {instances.length === 0 && !showCreateForm && (
-            <div className="text-center py-8">
-              <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">
-                Nenhuma instância WhatsApp
+          {instances.length > 0 && (
+            <div>
+              <h3 className="text-lg font-medium text-foreground mb-4">
+                Suas Instâncias
               </h3>
-              <p className="text-muted-foreground mb-4">
-                {canCreate.allowed 
-                  ? 'Crie sua primeira instância para receber alertas via WhatsApp.'
-                  : canCreate.reason
-                }
-              </p>
+              <InstanceList
+                instances={instances}
+                onDelete={deleteInstance}
+                onRefresh={refreshInstance}
+                isLoading={isLoading}
+              />
             </div>
-          )}
-
-          {/* Modal QR Code */}
-          {selectedInstance && qrCode && (
-            <Card className="bg-card/50 border-border">
-              <CardHeader>
-                <CardTitle>QR Code - {selectedInstance.instance_name}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-center">
-                <div className="bg-white p-4 rounded-lg inline-block mb-4">
-                  <img 
-                    src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`}
-                    alt="QR Code"
-                    className="max-w-64 max-h-64"
-                    onError={(e) => {
-                      console.error('Erro ao carregar QR Code:', qrCode);
-                      toast({
-                        title: "Erro no QR Code",
-                        description: "Não foi possível carregar o QR Code.",
-                        variant: "destructive"
-                      });
-                    }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Escaneie este QR Code com o WhatsApp para conectar a instância.
-                </p>
-                <Button
-                  className="mt-4"
-                  onClick={() => {
-                    setSelectedInstance(null);
-                    setQrCode('');
-                  }}
-                >
-                  Fechar
-                </Button>
-              </CardContent>
-            </Card>
           )}
           
           <div className="flex justify-end">
-            <Button variant="outline" onClick={onClose}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+            >
               Fechar
             </Button>
           </div>
