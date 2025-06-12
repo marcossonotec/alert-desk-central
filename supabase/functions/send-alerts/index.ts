@@ -46,7 +46,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Buscar perfil do usuário com email de notificações
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('nome_completo, email, email_notificacoes, whatsapp')
+      .select('nome_completo, email, email_notificacoes, whatsapp, empresa')
       .eq('id', alerta.usuario_id)
       .single();
 
@@ -54,63 +54,105 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Perfil do usuário não encontrado');
     }
 
+    // Buscar template de email personalizado
+    const { data: emailTemplate } = await supabase
+      .from('email_templates')
+      .select('*')
+      .eq('usuario_id', alerta.usuario_id)
+      .eq('template_type', 'alert')
+      .eq('is_active', true)
+      .single();
+
     // Determinar qual email usar para notificações
     const notificationEmail = profile.email_notificacoes || profile.email;
     
     console.log('Email para notificação:', notificationEmail);
 
-    // Preparar dados para a mensagem
+    // Preparar dados para as mensagens
     const recursoNome = alerta.servidores?.nome || alerta.aplicacoes?.nome || 'Recurso desconhecido';
     const tipoRecurso = servidor_id ? 'Servidor' : 'Aplicação';
+    const dataHora = new Date().toLocaleString('pt-BR');
+    const ipServidor = alerta.servidores?.ip || 'N/A';
     
-    let mensagem = `🚨 ALERTA: ${tipoRecurso} "${recursoNome}"\n\n`;
-    
-    switch (tipo_alerta) {
-      case 'cpu_usage':
-        mensagem += `⚠️ Alto uso de CPU: ${valor_atual}% (limite: ${limite}%)`;
-        break;
-      case 'memoria_usage':
-        mensagem += `⚠️ Alto uso de memória: ${valor_atual}% (limite: ${limite}%)`;
-        break;
-      case 'disco_usage':
-        mensagem += `⚠️ Alto uso de disco: ${valor_atual}% (limite: ${limite}%)`;
-        break;
-      case 'response_time':
-        mensagem += `⚠️ Tempo de resposta alto: ${valor_atual}ms (limite: ${limite}ms)`;
-        break;
-      case 'status':
-        mensagem += `🔴 Servidor/Aplicação está OFFLINE`;
-        break;
-      default:
-        mensagem += `⚠️ ${tipo_alerta}: ${valor_atual} (limite: ${limite})`;
+    // Função para substituir variáveis no template
+    const replaceVariables = (template: string) => {
+      return template
+        .replace(/\{\{nome\}\}/g, profile.nome_completo || 'Usuário')
+        .replace(/\{\{empresa\}\}/g, profile.empresa || 'Sua empresa')
+        .replace(/\{\{servidor_nome\}\}/g, recursoNome)
+        .replace(/\{\{tipo_alerta\}\}/g, getTipoAlertaName(tipo_alerta))
+        .replace(/\{\{valor_atual\}\}/g, valor_atual?.toString() || 'N/A')
+        .replace(/\{\{limite\}\}/g, limite?.toString() || 'N/A')
+        .replace(/\{\{data_hora\}\}/g, dataHora)
+        .replace(/\{\{ip_servidor\}\}/g, ipServidor)
+        .replace(/\{\{status\}\}/g, getStatusFromTipoAlerta(tipo_alerta));
+    };
+
+    function getTipoAlertaName(tipo: string) {
+      const tipos = {
+        'cpu_usage': 'Alto uso de CPU',
+        'memoria_usage': 'Alto uso de memória',
+        'disco_usage': 'Alto uso de disco',
+        'response_time': 'Tempo de resposta alto',
+        'status': 'Servidor/Aplicação offline',
+        'cpu': 'Alto uso de CPU',
+        'memoria': 'Alto uso de memória',
+        'disco': 'Alto uso de disco'
+      };
+      return tipos[tipo] || tipo;
     }
 
-    if (servidor_id && alerta.servidores?.ip) {
-      mensagem += `\n\n📍 IP: ${alerta.servidores.ip}`;
+    function getStatusFromTipoAlerta(tipo: string) {
+      if (tipo === 'status') return 'OFFLINE';
+      if (tipo.includes('cpu') || tipo.includes('memoria') || tipo.includes('disco')) return 'CRÍTICO';
+      return 'ALERTA';
     }
 
-    mensagem += `\n\n🕒 ${new Date().toLocaleString('pt-BR')}`;
+    // Preparar mensagem de email
+    let emailContent = '';
+    let emailSubject = '';
 
-    // Registrar notificação no banco
-    const notificationData = {
+    if (emailTemplate) {
+      // Usar template personalizado
+      emailSubject = replaceVariables(emailTemplate.subject);
+      emailContent = replaceVariables(emailTemplate.html_content);
+    } else {
+      // Usar template padrão
+      emailSubject = `🚨 ALERTA: ${getTipoAlertaName(tipo_alerta)} - ${recursoNome}`;
+      emailContent = `
+        <h1>Alerta de Monitoramento</h1>
+        <p><strong>Olá ${profile.nome_completo || 'Usuário'},</strong></p>
+        <p>Foi detectado um alerta no seu ${tipoRecurso.toLowerCase()}: <strong>${recursoNome}</strong></p>
+        
+        <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;">
+          <h3 style="color: #dc3545; margin-top: 0;">⚠️ ${getTipoAlertaName(tipo_alerta)}</h3>
+          <p><strong>Valor atual:</strong> ${valor_atual}${tipo_alerta.includes('time') ? 'ms' : '%'}</p>
+          <p><strong>Limite configurado:</strong> ${limite}${tipo_alerta.includes('time') ? 'ms' : '%'}</p>
+          ${ipServidor !== 'N/A' ? `<p><strong>IP do servidor:</strong> ${ipServidor}</p>` : ''}
+          <p><strong>Data/Hora:</strong> ${dataHora}</p>
+        </div>
+        
+        <p>Este é um alerta automático do sistema de monitoramento DeskTools.</p>
+      `;
+    }
+
+    // Registrar notificação de email no banco
+    const emailNotificationData = {
       alerta_id,
       servidor_id: servidor_id || null,
       canal: 'email',
       destinatario: notificationEmail,
-      mensagem,
+      mensagem: emailContent,
       status: 'enviado'
     };
 
     const { error: notificationError } = await supabase
       .from('notificacoes')
-      .insert(notificationData);
+      .insert(emailNotificationData);
 
     if (notificationError) {
-      console.error('Erro ao registrar notificação:', notificationError);
+      console.error('Erro ao registrar notificação de email:', notificationError);
     }
-
-    // Enviar por email (implementar integração com serviço de email)
-    // Por enquanto apenas registra no banco
 
     // Se WhatsApp configurado e canais incluem WhatsApp, enviar via WhatsApp
     if (profile.whatsapp && alerta.canal_notificacao?.includes('whatsapp')) {
@@ -125,6 +167,20 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (evolutionInstance) {
         try {
+          // Buscar template de WhatsApp personalizado ou usar padrão
+          let whatsappMessage = evolutionInstance.message_template || `🚨 *ALERTA: {{tipo_alerta}}*
+
+📊 *${tipoRecurso}:* {{servidor_nome}}
+📍 *IP:* {{ip_servidor}}
+⚠️ *Problema:* {{tipo_alerta}} em {{valor_atual}}% (limite: {{limite}}%)
+
+🕒 *Data/Hora:* {{data_hora}}
+
+_Mensagem automática do DeskTools_`;
+
+          // Substituir variáveis na mensagem do WhatsApp
+          whatsappMessage = replaceVariables(whatsappMessage);
+
           // Enviar WhatsApp via Evolution API
           await fetch(`${evolutionInstance.api_url}/message/sendText/${evolutionInstance.instance_name}`, {
             method: 'POST',
@@ -134,7 +190,7 @@ const handler = async (req: Request): Promise<Response> => {
             },
             body: JSON.stringify({
               number: profile.whatsapp.replace(/\D/g, ''),
-              text: mensagem
+              text: whatsappMessage
             })
           });
 
@@ -144,9 +200,10 @@ const handler = async (req: Request): Promise<Response> => {
           await supabase
             .from('notificacoes')
             .insert({
-              ...notificationData,
+              ...emailNotificationData,
               canal: 'whatsapp',
-              destinatario: profile.whatsapp
+              destinatario: profile.whatsapp,
+              mensagem: whatsappMessage
             });
 
         } catch (whatsappError) {

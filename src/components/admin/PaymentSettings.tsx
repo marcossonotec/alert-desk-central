@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,8 @@ const PaymentSettings = () => {
 
     try {
       setIsLoading(true);
+      console.log('Carregando configurações de pagamento para usuário:', user.id);
+      
       const { data, error } = await supabase
         .from('payment_settings')
         .select('*')
@@ -45,11 +48,12 @@ const PaymentSettings = () => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao carregar configurações:', error);
         throw error;
       }
 
       if (data) {
-        // Extrair apenas os campos necessários para evitar erro de tipagem
+        console.log('Configurações carregadas:', data);
         setPaymentSettings({
           gateway_type: data.gateway_type as 'stripe' | 'mercadopago',
           mode: data.mode as 'test' | 'production',
@@ -59,8 +63,10 @@ const PaymentSettings = () => {
           mercadopago_access_token: data.mercadopago_access_token || '',
           mercadopago_public_key: data.mercadopago_public_key || '',
           mercadopago_webhook_url: data.mercadopago_webhook_url || '',
-          is_active: data.is_active
+          is_active: data.is_active || false
         });
+      } else {
+        console.log('Nenhuma configuração encontrada, usando padrões');
       }
     } catch (error: any) {
       console.error('Erro ao carregar configurações:', error);
@@ -79,15 +85,34 @@ const PaymentSettings = () => {
 
     try {
       setIsLoading(true);
-      const { error } = await supabase
+      console.log('Salvando configurações:', paymentSettings);
+
+      const { data, error } = await supabase
         .from('payment_settings')
         .upsert({
           usuario_id: user.id,
           ...paymentSettings,
           updated_at: new Date().toISOString()
-        });
+        }, {
+          onConflict: 'usuario_id'
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao salvar:', error);
+        throw error;
+      }
+
+      console.log('Configurações salvas com sucesso:', data);
+      
+      // Atualizar o estado local com os dados salvos
+      if (data) {
+        setPaymentSettings(prev => ({
+          ...prev,
+          is_active: data.is_active
+        }));
+      }
 
       toast({
         title: "Configurações salvas",
@@ -97,7 +122,7 @@ const PaymentSettings = () => {
       console.error('Erro ao salvar configurações:', error);
       toast({
         title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações.",
+        description: `Não foi possível salvar as configurações: ${error.message}`,
         variant: "destructive"
       });
     } finally {
@@ -138,6 +163,7 @@ const PaymentSettings = () => {
   };
 
   const updateField = (field: string, value: any) => {
+    console.log('Atualizando campo:', field, 'com valor:', value);
     setPaymentSettings(prev => ({
       ...prev,
       [field]: value

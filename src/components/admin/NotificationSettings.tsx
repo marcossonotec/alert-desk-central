@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, Send, Settings, TestTube, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { Mail, Send, Settings, TestTube, FileText, CheckCircle, XCircle, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +42,19 @@ const NotificationSettings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Variáveis disponíveis para templates
+  const availableVariables = [
+    { name: '{{nome}}', description: 'Nome do usuário' },
+    { name: '{{empresa}}', description: 'Nome da empresa' },
+    { name: '{{servidor_nome}}', description: 'Nome do servidor' },
+    { name: '{{tipo_alerta}}', description: 'Tipo do alerta (CPU, Memória, Disco)' },
+    { name: '{{valor_atual}}', description: 'Valor atual da métrica' },
+    { name: '{{limite}}', description: 'Limite configurado' },
+    { name: '{{data_hora}}', description: 'Data e hora do alerta' },
+    { name: '{{ip_servidor}}', description: 'IP do servidor' },
+    { name: '{{status}}', description: 'Status do servidor/aplicação' }
+  ];
+
   useEffect(() => {
     loadNotificationSettings();
     loadEmailTemplates();
@@ -52,6 +65,8 @@ const NotificationSettings = () => {
 
     try {
       setIsLoading(true);
+      console.log('Carregando configurações de notificação para usuário:', user.id);
+      
       const { data, error } = await supabase
         .from('notification_settings')
         .select('*')
@@ -59,14 +74,32 @@ const NotificationSettings = () => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao carregar configurações:', error);
         throw error;
       }
 
       if (data) {
-        setNotificationSettings(data);
+        console.log('Configurações de notificação carregadas:', data);
+        setNotificationSettings({
+          email_provider: data.email_provider || 'smtp',
+          smtp_host: data.smtp_host || '',
+          smtp_port: data.smtp_port || 587,
+          smtp_username: data.smtp_username || '',
+          smtp_password: data.smtp_password || '',
+          smtp_secure: data.smtp_secure !== false,
+          api_key: data.api_key || '',
+          from_email: data.from_email || '',
+          from_name: data.from_name || 'DeskTools',
+          is_active: data.is_active || false
+        });
       }
     } catch (error: any) {
       console.error('Erro ao carregar configurações:', error);
+      toast({
+        title: "Erro ao carregar configurações",
+        description: "Não foi possível carregar as configurações de notificação.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -94,15 +127,34 @@ const NotificationSettings = () => {
 
     try {
       setIsLoading(true);
-      const { error } = await supabase
+      console.log('Salvando configurações de notificação:', notificationSettings);
+
+      const { data, error } = await supabase
         .from('notification_settings')
         .upsert({
           usuario_id: user.id,
           ...notificationSettings,
           updated_at: new Date().toISOString()
-        });
+        }, {
+          onConflict: 'usuario_id'
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao salvar:', error);
+        throw error;
+      }
+
+      console.log('Configurações de notificação salvas:', data);
+
+      // Atualizar estado local
+      if (data) {
+        setNotificationSettings(prev => ({
+          ...prev,
+          is_active: data.is_active
+        }));
+      }
 
       toast({
         title: "Configurações salvas",
@@ -112,7 +164,7 @@ const NotificationSettings = () => {
       console.error('Erro ao salvar configurações:', error);
       toast({
         title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações.",
+        description: `Não foi possível salvar as configurações: ${error.message}`,
         variant: "destructive"
       });
     } finally {
@@ -155,7 +207,6 @@ const NotificationSettings = () => {
     setTestStatus('idle');
 
     try {
-      // Simular teste de email (implementar com edge function posteriormente)
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       if (notificationSettings.from_email && 
@@ -182,6 +233,7 @@ const NotificationSettings = () => {
   };
 
   const updateField = (field: string, value: any) => {
+    console.log('Atualizando campo de notificação:', field, 'com valor:', value);
     setNotificationSettings(prev => ({
       ...prev,
       [field]: value
@@ -194,6 +246,23 @@ const NotificationSettings = () => {
       ...prev,
       [field]: value
     }));
+  };
+
+  const insertVariable = (variable: string) => {
+    const textarea = document.getElementById('html_content') as HTMLTextAreaElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = currentTemplate.html_content;
+      const newText = text.substring(0, start) + variable + text.substring(end);
+      updateTemplateField('html_content', newText);
+      
+      // Reposicionar cursor
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + variable.length, start + variable.length);
+      }, 0);
+    }
   };
 
   const emailProviders = [
@@ -392,6 +461,35 @@ const NotificationSettings = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Variáveis disponíveis */}
+              <Card className="bg-muted/50 border-border">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Info className="h-4 w-4" />
+                    Variáveis Disponíveis
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {availableVariables.map((variable) => (
+                      <Button
+                        key={variable.name}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => insertVariable(variable.name)}
+                        className="justify-start text-xs h-8"
+                        title={variable.description}
+                      >
+                        {variable.name}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Clique em uma variável para inserir no template
+                  </p>
+                </CardContent>
+              </Card>
+
               {/* Seleção do tipo de template */}
               <div className="space-y-2">
                 <Label>Tipo de Template</Label>
@@ -417,7 +515,7 @@ const NotificationSettings = () => {
                 <Label htmlFor="subject">Assunto</Label>
                 <Input
                   id="subject"
-                  placeholder="Assunto do email"
+                  placeholder="🚨 Alerta: {{tipo_alerta}} em {{servidor_nome}}"
                   value={currentTemplate.subject}
                   onChange={(e) => updateTemplateField('subject', e.target.value)}
                   className="bg-background border-border"
@@ -429,7 +527,7 @@ const NotificationSettings = () => {
                 <Label htmlFor="html_content">Conteúdo HTML</Label>
                 <Textarea
                   id="html_content"
-                  placeholder="<h1>Olá {{nome}}!</h1><p>Bem-vindo ao DeskTools...</p>"
+                  placeholder="<h1>Olá {{nome}}!</h1><p>Alerta de {{tipo_alerta}} no servidor {{servidor_nome}}:</p><p>Valor atual: {{valor_atual}}% (limite: {{limite}}%)</p><p>{{data_hora}}</p>"
                   value={currentTemplate.html_content}
                   onChange={(e) => updateTemplateField('html_content', e.target.value)}
                   className="bg-background border-border min-h-[200px]"
@@ -441,7 +539,7 @@ const NotificationSettings = () => {
                 <Label htmlFor="text_content">Conteúdo em Texto (opcional)</Label>
                 <Textarea
                   id="text_content"
-                  placeholder="Olá {{nome}}! Bem-vindo ao DeskTools..."
+                  placeholder="Olá {{nome}}! Alerta de {{tipo_alerta}} no servidor {{servidor_nome}}: {{valor_atual}}% (limite: {{limite}}%) - {{data_hora}}"
                   value={currentTemplate.text_content}
                   onChange={(e) => updateTemplateField('text_content', e.target.value)}
                   className="bg-background border-border"
