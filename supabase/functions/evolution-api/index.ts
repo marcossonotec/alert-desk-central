@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -34,6 +33,8 @@ const handler = async (req: Request): Promise<Response> => {
           return await checkInstanceStatus(supabase, body);
         case 'delete-instance':
           return await deleteInstance(supabase, body);
+        case 'send_message':
+          return await sendMessage(supabase, body);
         default:
           return new Response(
             JSON.stringify({ error: 'Ação não encontrada' }),
@@ -253,6 +254,76 @@ async function deleteInstance(supabase: any, body: any) {
 
   } catch (error: any) {
     console.error('Erro ao deletar instância:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+  }
+}
+
+async function sendMessage(supabase: any, body: any) {
+  const { instance_id, number, message } = body;
+
+  try {
+    console.log('Iniciando envio de mensagem:', { instance_id, number, message });
+
+    // Buscar instância no banco
+    const { data: instance, error } = await supabase
+      .from('evolution_instances')
+      .select('*')
+      .eq('id', instance_id)
+      .single();
+
+    if (error || !instance) {
+      throw new Error('Instância não encontrada');
+    }
+
+    console.log('Instância encontrada:', instance.instance_name);
+
+    // Verificar se a instância está conectada
+    if (instance.status !== 'connected') {
+      throw new Error('Instância não está conectada');
+    }
+
+    // Formatear número (garantir que tenha apenas dígitos)
+    const formattedNumber = number.toString().replace(/\D/g, '');
+    
+    // Adicionar código do país se não tiver
+    const finalNumber = formattedNumber.startsWith('55') ? formattedNumber : `55${formattedNumber}`;
+
+    console.log('Número formatado:', finalNumber);
+
+    // Enviar mensagem via Evolution API
+    const evolutionResponse = await fetch(`${EVOLUTION_API_URL}/message/sendText/${instance.instance_name}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': EVOLUTION_API_KEY,
+      },
+      body: JSON.stringify({
+        number: finalNumber,
+        text: message
+      }),
+    });
+
+    console.log('Status da resposta:', evolutionResponse.status);
+
+    if (!evolutionResponse.ok) {
+      const errorText = await evolutionResponse.text();
+      console.error('Erro da Evolution API:', errorText);
+      throw new Error(`Erro ao enviar mensagem: ${errorText}`);
+    }
+
+    const evolutionData = await evolutionResponse.json();
+    console.log('Resposta da Evolution API:', evolutionData);
+
+    return new Response(
+      JSON.stringify({ success: true, data: evolutionData }),
+      { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+
+  } catch (error: any) {
+    console.error('Erro ao enviar mensagem:', error);
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
