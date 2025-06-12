@@ -17,11 +17,13 @@ import QRCodeDisplay from '@/components/evolution/QRCodeDisplay';
 interface EvolutionInstanceModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onInstanceUpdate?: () => void;
 }
 
 const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
   isOpen,
   onClose,
+  onInstanceUpdate,
 }) => {
   const [instances, setInstances] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,13 +31,29 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
   const [userPlan, setUserPlan] = useState<string>('free');
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [qrInstanceName, setQrInstanceName] = useState<string>('');
+  const [statusCheckInterval, setStatusCheckInterval] = useState<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen) {
       loadData();
+    } else {
+      // Limpar intervalo quando modal fechar
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+        setStatusCheckInterval(null);
+      }
     }
   }, [isOpen]);
+
+  // Limpar intervalo quando componente desmontar
+  useEffect(() => {
+    return () => {
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+      }
+    };
+  }, [statusCheckInterval]);
 
   const loadData = async () => {
     try {
@@ -95,6 +113,53 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
     return maxInstances > 0 && instances.length < maxInstances;
   };
 
+  const startStatusChecking = (instanceId: string) => {
+    // Limpar intervalo existente se houver
+    if (statusCheckInterval) {
+      clearInterval(statusCheckInterval);
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('evolution-api', {
+          body: {
+            action: 'check-status',
+            instance_id: instanceId
+          }
+        });
+
+        if (error) throw error;
+
+        if (data.success && data.status === 'connected') {
+          // Parar verificação quando conectado
+          clearInterval(interval);
+          setStatusCheckInterval(null);
+          
+          // Recarregar dados para atualizar a UI
+          await loadData();
+          
+          // Chamar callback se fornecido
+          if (onInstanceUpdate) {
+            onInstanceUpdate();
+          }
+          
+          // Limpar QR Code
+          setQrCode(null);
+          setQrInstanceName('');
+          
+          toast({
+            title: "WhatsApp conectado!",
+            description: "Sua instância foi conectada com sucesso.",
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao verificar status:', error);
+      }
+    }, 5000); // Verificar a cada 5 segundos
+
+    setStatusCheckInterval(interval);
+  };
+
   const createInstance = async (instanceName: string) => {
     if (!canCreateInstance()) {
       toast({
@@ -122,15 +187,18 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
       if (data.success) {
         toast({
           title: "Instância criada",
-          description: "Agora vamos gerar o QR Code...",
+          description: "Aguarde, vamos gerar o QR Code...",
         });
+        
+        // Recarregar dados primeiro
+        await loadData();
         
         // Aguardar um pouco e buscar o QR Code
         setTimeout(async () => {
           await getQRCode(data.instance.id);
-        }, 2000);
-        
-        loadData();
+          // Iniciar verificação de status
+          startStatusChecking(data.instance.id);
+        }, 3000);
       } else {
         throw new Error(data.error || 'Erro ao criar instância');
       }
@@ -180,6 +248,12 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
     try {
       setIsLoading(true);
 
+      // Parar verificação de status se estiver rodando
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+        setStatusCheckInterval(null);
+      }
+
       const { data, error } = await supabase.functions.invoke('evolution-api', {
         body: {
           action: 'delete-instance',
@@ -194,7 +268,16 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
         description: "A instância foi removida com sucesso.",
       });
       
-      loadData();
+      await loadData();
+      
+      // Chamar callback se fornecido
+      if (onInstanceUpdate) {
+        onInstanceUpdate();
+      }
+      
+      // Limpar QR Code se for da instância deletada
+      setQrCode(null);
+      setQrInstanceName('');
     } catch (error: any) {
       console.error('Erro ao excluir instância:', error);
       toast({
@@ -225,7 +308,12 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
         description: "O status da instância foi verificado.",
       });
       
-      loadData();
+      await loadData();
+      
+      // Chamar callback se fornecido
+      if (onInstanceUpdate) {
+        onInstanceUpdate();
+      }
     } catch (error: any) {
       console.error('Erro ao atualizar status:', error);
       toast({

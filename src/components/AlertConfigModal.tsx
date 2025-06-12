@@ -39,18 +39,22 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
   const { toast } = useToast();
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && server?.id) {
       loadData();
     }
-  }, [isOpen, server.id]);
+  }, [isOpen, server?.id]);
 
   const loadData = async () => {
+    if (!server?.id) return;
+    
     try {
       setIsLoading(true);
       
       // Buscar usuário atual
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       setUser(currentUser);
+
+      if (!currentUser) return;
 
       // Buscar alertas existentes
       const { data: alertsData, error: alertsError } = await supabase
@@ -64,7 +68,7 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
       const { data: instancesData, error: instancesError } = await supabase
         .from('evolution_instances')
         .select('*')
-        .eq('usuario_id', currentUser?.id);
+        .eq('usuario_id', currentUser.id);
 
       if (instancesError) throw instancesError;
 
@@ -73,7 +77,7 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
 
       // Se não há alertas, criar os padrões
       if (!alertsData || alertsData.length === 0) {
-        await createDefaultAlerts();
+        await createDefaultAlerts(currentUser.id);
       }
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
@@ -87,7 +91,7 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
     }
   };
 
-  const createDefaultAlerts = async () => {
+  const createDefaultAlerts = async (userId: string) => {
     try {
       const defaultAlerts = [
         { tipo_alerta: 'cpu', limite_valor: 80 },
@@ -98,7 +102,7 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
       const alertsToInsert = defaultAlerts.map(alert => ({
         ...alert,
         servidor_id: server.id,
-        usuario_id: user?.id,
+        usuario_id: userId,
         canal_notificacao: ['email'],
         ativo: true
       }));
@@ -162,6 +166,10 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
     };
     return colors[tipo as keyof typeof colors] || 'text-gray-500';
   };
+
+  if (!server?.id) {
+    return null;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

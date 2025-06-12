@@ -145,16 +145,19 @@ const Dashboard = () => {
         <DashboardSidebar 
           userProfile={userProfile}
           servers={servers}
+          onOpenWhatsApp={() => setShowWhatsAppModal(true)}
         />
 
         <AddServerModal
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
+          onAddServer={loadData}
         />
 
         <EvolutionInstanceModal
           isOpen={showWhatsAppModal}
           onClose={() => setShowWhatsAppModal(false)}
+          onInstanceUpdate={loadData}
         />
       </div>
     </SidebarProvider>

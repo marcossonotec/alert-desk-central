@@ -11,20 +11,25 @@ import {
   ArrowUp,
   Calendar,
   Mail,
-  Phone
+  Phone,
+  Settings
 } from 'lucide-react';
 import UpgradeModal from '@/components/UpgradeModal';
+import { useNavigate } from 'react-router-dom';
 
 interface DashboardSidebarProps {
   userProfile: any;
   servers: any[];
+  onOpenWhatsApp: () => void;
 }
 
 const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   userProfile,
   servers,
+  onOpenWhatsApp,
 }) => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const navigate = useNavigate();
 
   const getPlanInfo = (plan: string) => {
     switch (plan) {
@@ -60,6 +65,14 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   };
 
   const planInfo = getPlanInfo(userProfile?.plano_ativo || 'free');
+
+  const handleConfigureEmail = () => {
+    navigate('/profile');
+  };
+
+  const handleConfigureWhatsApp = () => {
+    onOpenWhatsApp();
+  };
 
   return (
     <>
@@ -107,7 +120,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               <div className="flex items-center space-x-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">
-                  Membro desde {new Date(userProfile?.data_criacao).toLocaleDateString('pt-BR')}
+                  Membro desde {new Date(userProfile?.data_criacao || Date.now()).toLocaleDateString('pt-BR')}
                 </span>
               </div>
             </CardContent>
@@ -150,7 +163,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                 </div>
               </div>
               
-              {userProfile?.plano_ativo === 'free' && (
+              {userProfile?.plano_ativo !== 'empresarial' && (
                 <Button 
                   onClick={() => setShowUpgradeModal(true)}
                   className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
@@ -191,12 +204,20 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               <CardTitle className="text-lg">Ações Rápidas</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={handleConfigureEmail}
+              >
                 <Mail className="h-4 w-4 mr-2" />
-                Configurar Email
+                Configurar Perfil
               </Button>
               
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={handleConfigureWhatsApp}
+              >
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Configurar WhatsApp
               </Button>
