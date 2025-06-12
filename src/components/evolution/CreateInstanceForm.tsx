@@ -1,35 +1,129 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 interface CreateInstanceFormProps {
-  onCreateInstance: (instanceName: string) => void;
-  isLoading: boolean;
-  canCreateInstance: boolean;
-  currentInstanceCount: number;
-  maxInstances: number;
+  onInstanceCreated: () => void;
 }
 
 const CreateInstanceForm: React.FC<CreateInstanceFormProps> = ({
-  onCreateInstance,
-  isLoading,
-  canCreateInstance,
-  currentInstanceCount,
-  maxInstances,
+  onInstanceCreated,
 }) => {
   const [instanceName, setInstanceName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [userPlan, setUserPlan] = useState<any>(null);
+  const [instanceCount, setInstanceCount] = useState(0);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (instanceName.trim()) {
-      onCreateInstance(instanceName.trim());
-      setInstanceName('');
+  useEffect(() => {
+    if (user) {
+      loadUserData();
+    }
+  }, [user]);
+
+  const loadUserData = async () => {
+    if (!user) return;
+
+    try {
+      // Carregar perfil do usuário
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('plano_ativo')
+        .eq('id', user.id)
+        .single();
+
+      // Carregar dados do plano
+      const { data: plano } = await supabase
+        .from('planos_assinatura')
+        .select('*')
+        .eq('nome', profile?.plano_ativo || 'free')
+        .single();
+
+      setUserPlan(plano);
+
+      // Contar instâncias existentes
+      const { data: instances } = await supabase
+        .from('evolution_instances')
+        .select('id')
+        .eq('usuario_id', user.id);
+
+      setInstanceCount(instances?.length || 0);
+    } catch (error) {
+      console.error('Erro ao carregar dados do usuário:', error);
     }
   };
+
+  const getMaxInstances = () => {
+    if (!userPlan) return 0;
+    const recursos = userPlan.recursos || {};
+    return recursos.max_whatsapp_instances || 0;
+  };
+
+  const canCreateInstance = () => {
+    const maxInstances = getMaxInstances();
+    return maxInstances === -1 || instanceCount < maxInstances;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!instanceName.trim() || !user) return;
+
+    if (!canCreateInstance()) {
+      toast({
+        title: "Limite atingido",
+        description: "Você atingiu o limite de instâncias do seu plano.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Chamar edge function para criar instância
+      const { data, error } = await supabase.functions.invoke('evolution-api', {
+        body: {
+          action: 'create-instance',
+          usuario_id: user.id,
+          instance_name: instanceName.trim()
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: "Instância criada",
+          description: "Instância WhatsApp criada com sucesso!",
+        });
+
+        setInstanceName('');
+        onInstanceCreated();
+        await loadUserData(); // Recarregar dados
+      } else {
+        throw new Error(data?.error || 'Erro ao criar instância');
+      }
+    } catch (error: any) {
+      console.error('Erro ao criar instância:', error);
+      toast({
+        title: "Erro ao criar instância",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const maxInstances = getMaxInstances();
 
   return (
     <Card className="bg-card border-border">
@@ -46,24 +140,24 @@ const CreateInstanceForm: React.FC<CreateInstanceFormProps> = ({
               onChange={(e) => setInstanceName(e.target.value)}
               placeholder="ex: minha-empresa"
               className="bg-background border-border"
-              disabled={!canCreateInstance || isLoading}
+              disabled={!canCreateInstance() || isLoading}
             />
           </div>
           
           <div className="text-sm text-muted-foreground">
-            Instâncias: {currentInstanceCount}/{maxInstances === -1 ? '∞' : maxInstances}
+            Instâncias: {instanceCount}/{maxInstances === -1 ? '∞' : maxInstances}
           </div>
           
           <Button
             type="submit"
-            disabled={!canCreateInstance || isLoading || !instanceName.trim()}
+            disabled={!canCreateInstance() || isLoading || !instanceName.trim()}
             className="w-full bg-green-600 hover:bg-green-700 text-white"
           >
             <Plus className="h-4 w-4 mr-2" />
             {isLoading ? 'Criando...' : 'Criar Instância'}
           </Button>
           
-          {!canCreateInstance && (
+          {!canCreateInstance() && (
             <p className="text-sm text-red-600">
               {maxInstances === 0 
                 ? 'Seu plano não permite instâncias WhatsApp. Faça upgrade para usar este recurso.'

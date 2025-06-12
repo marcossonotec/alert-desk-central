@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CreateInstanceForm from './evolution/CreateInstanceForm';
 import InstanceList from './evolution/InstanceList';
 import WhatsAppMessageEditor from './WhatsAppMessageEditor';
-import { MessageSquare } from 'lucide-react';
 
 interface EvolutionInstanceModalProps {
   isOpen: boolean;
@@ -27,9 +26,18 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
   const [activeTab, setActiveTab] = useState('list');
   const [showMessageEditor, setShowMessageEditor] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<{id: string, name: string} | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleInstanceCreated = () => {
     setActiveTab('list');
+    setRefreshKey(prev => prev + 1); // Força atualização da lista
+    if (onInstanceUpdate) {
+      onInstanceUpdate();
+    }
+  };
+
+  const handleInstanceUpdate = () => {
+    setRefreshKey(prev => prev + 1); // Força atualização da lista
     if (onInstanceUpdate) {
       onInstanceUpdate();
     }
@@ -44,6 +52,14 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
     setShowMessageEditor(false);
     setSelectedInstance(null);
   };
+
+  // Fechar editor de mensagens se o modal principal for fechado
+  useEffect(() => {
+    if (!isOpen && showMessageEditor) {
+      setShowMessageEditor(false);
+      setSelectedInstance(null);
+    }
+  }, [isOpen, showMessageEditor]);
 
   return (
     <>
@@ -63,7 +79,8 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
             
             <TabsContent value="list" className="space-y-4">
               <InstanceList 
-                onUpdate={onInstanceUpdate}
+                key={refreshKey}
+                onUpdate={handleInstanceUpdate}
                 onEditMessages={handleEditMessages}
               />
             </TabsContent>

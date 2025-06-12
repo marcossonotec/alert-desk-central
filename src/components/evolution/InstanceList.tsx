@@ -1,29 +1,132 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Trash2, RefreshCw } from 'lucide-react';
+import { MessageSquare, Trash2, RefreshCw, Settings } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 interface InstanceListProps {
-  instances: any[];
-  onDelete: (id: string) => void;
-  onRefresh: (id: string) => void;
-  isLoading: boolean;
+  onUpdate?: () => void;
+  onEditMessages: (instanceId: string, instanceName: string) => void;
 }
 
 const InstanceList: React.FC<InstanceListProps> = ({
-  instances,
-  onDelete,
-  onRefresh,
-  isLoading,
+  onUpdate,
+  onEditMessages,
 }) => {
+  const [instances, setInstances] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (user) {
+      loadInstances();
+    }
+  }, [user]);
+
+  const loadInstances = async () => {
+    if (!user) return;
+
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('evolution_instances')
+        .select('*')
+        .eq('usuario_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setInstances(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar instâncias:', error);
+      toast({
+        title: "Erro ao carregar instâncias",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (instanceId: string) => {
+    try {
+      setIsLoading(true);
+      
+      // Chamar edge function para deletar
+      const { error } = await supabase.functions.invoke('evolution-api', {
+        body: {
+          action: 'delete-instance',
+          instance_id: instanceId
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Instância deletada",
+        description: "A instância foi removida com sucesso.",
+      });
+
+      await loadInstances();
+      if (onUpdate) onUpdate();
+    } catch (error: any) {
+      console.error('Erro ao deletar instância:', error);
+      toast({
+        title: "Erro ao deletar",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRefresh = async (instanceId: string) => {
+    try {
+      setIsLoading(true);
+      
+      // Verificar status via edge function
+      const { data, error } = await supabase.functions.invoke('evolution-api', {
+        body: {
+          action: 'check-status',
+          instance_id: instanceId
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Status atualizado",
+        description: `Status da instância: ${data.status}`,
+      });
+
+      await loadInstances();
+      if (onUpdate) onUpdate();
+    } catch (error: any) {
+      console.error('Erro ao atualizar status:', error);
+      toast({
+        title: "Erro ao atualizar",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'connected':
         return 'bg-green-100 text-green-800';
       case 'disconnected':
         return 'bg-red-100 text-red-800';
+      case 'connecting':
+        return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -35,10 +138,34 @@ const InstanceList: React.FC<InstanceListProps> = ({
         return 'Conectado';
       case 'disconnected':
         return 'Desconectado';
+      case 'connecting':
+        return 'Conectando';
       default:
         return 'Desconhecido';
     }
   };
+
+  if (isLoading && instances.length === 0) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <div className="text-muted-foreground">Carregando instâncias...</div>
+      </div>
+    );
+  }
+
+  if (instances.length === 0) {
+    return (
+      <div className="text-center p-8">
+        <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-foreground mb-2">
+          Nenhuma instância encontrada
+        </h3>
+        <p className="text-muted-foreground">
+          Crie sua primeira instância WhatsApp na aba "Criar Nova".
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -59,19 +186,30 @@ const InstanceList: React.FC<InstanceListProps> = ({
               </div>
               <div className="flex space-x-2">
                 <Button
-                  onClick={() => onRefresh(instance.id)}
+                  onClick={() => onEditMessages(instance.id, instance.instance_name)}
+                  disabled={isLoading || instance.status !== 'connected'}
+                  variant="outline"
+                  size="sm"
+                  title="Editar mensagens"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+                <Button
+                  onClick={() => handleRefresh(instance.id)}
                   disabled={isLoading}
                   variant="outline"
                   size="sm"
+                  title="Atualizar status"
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
                 <Button
-                  onClick={() => onDelete(instance.id)}
+                  onClick={() => handleDelete(instance.id)}
                   disabled={isLoading}
                   variant="outline"
                   size="sm"
                   className="text-red-600 hover:text-red-700"
+                  title="Deletar instância"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

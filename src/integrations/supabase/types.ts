@@ -316,6 +316,7 @@ export type Database = {
           created_at: string | null
           id: string
           instance_name: string
+          message_template: string | null
           qr_code: string | null
           status: string | null
           updated_at: string | null
@@ -328,6 +329,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           instance_name: string
+          message_template?: string | null
           qr_code?: string | null
           status?: string | null
           updated_at?: string | null
@@ -340,6 +342,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           instance_name?: string
+          message_template?: string | null
           qr_code?: string | null
           status?: string | null
           updated_at?: string | null
