@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users, Server, AlertTriangle, CreditCard } from 'lucide-react';
+import { ArrowLeft, Users, Server, AlertTriangle, CreditCard, Settings, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,6 +11,8 @@ import UserManagement from '@/components/admin/UserManagement';
 import ServerManagement from '@/components/admin/ServerManagement';
 import AlertsManagement from '@/components/admin/AlertsManagement';
 import SubscriptionManagement from '@/components/admin/SubscriptionManagement';
+import PaymentSettings from '@/components/admin/PaymentSettings';
+import NotificationSettings from '@/components/admin/NotificationSettings';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('users');
@@ -77,6 +79,8 @@ const Admin = () => {
     { id: 'servers', label: 'Servidores', icon: Server },
     { id: 'alerts', label: 'Alertas', icon: AlertTriangle },
     { id: 'subscriptions', label: 'Assinaturas', icon: CreditCard },
+    { id: 'payments', label: 'Pagamentos', icon: Settings },
+    { id: 'notifications', label: 'Notificações', icon: Mail },
   ];
 
   const renderTabContent = () => {
@@ -89,6 +93,10 @@ const Admin = () => {
         return <AlertsManagement />;
       case 'subscriptions':
         return <SubscriptionManagement />;
+      case 'payments':
+        return <PaymentSettings />;
+      case 'notifications':
+        return <NotificationSettings />;
       default:
         return null;
     }

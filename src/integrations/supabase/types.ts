@@ -270,6 +270,45 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          created_at: string
+          html_content: string
+          id: string
+          is_active: boolean
+          subject: string
+          template_type: string
+          text_content: string | null
+          updated_at: string
+          usuario_id: string
+          variables: Json | null
+        }
+        Insert: {
+          created_at?: string
+          html_content: string
+          id?: string
+          is_active?: boolean
+          subject: string
+          template_type: string
+          text_content?: string | null
+          updated_at?: string
+          usuario_id: string
+          variables?: Json | null
+        }
+        Update: {
+          created_at?: string
+          html_content?: string
+          id?: string
+          is_active?: boolean
+          subject?: string
+          template_type?: string
+          text_content?: string | null
+          updated_at?: string
+          usuario_id?: string
+          variables?: Json | null
+        }
+        Relationships: []
+      }
       evolution_instances: {
         Row: {
           api_key: string
@@ -400,6 +439,105 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notification_settings: {
+        Row: {
+          api_key: string | null
+          created_at: string
+          email_provider: string
+          from_email: string
+          from_name: string
+          id: string
+          is_active: boolean
+          smtp_host: string | null
+          smtp_password: string | null
+          smtp_port: number | null
+          smtp_secure: boolean | null
+          smtp_username: string | null
+          updated_at: string
+          usuario_id: string
+        }
+        Insert: {
+          api_key?: string | null
+          created_at?: string
+          email_provider?: string
+          from_email: string
+          from_name?: string
+          id?: string
+          is_active?: boolean
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean | null
+          smtp_username?: string | null
+          updated_at?: string
+          usuario_id: string
+        }
+        Update: {
+          api_key?: string | null
+          created_at?: string
+          email_provider?: string
+          from_email?: string
+          from_name?: string
+          id?: string
+          is_active?: boolean
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean | null
+          smtp_username?: string | null
+          updated_at?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
+      payment_settings: {
+        Row: {
+          created_at: string
+          gateway_type: string
+          id: string
+          is_active: boolean
+          mercadopago_access_token: string | null
+          mercadopago_public_key: string | null
+          mercadopago_webhook_url: string | null
+          mode: string
+          stripe_publishable_key: string | null
+          stripe_secret_key: string | null
+          stripe_webhook_secret: string | null
+          updated_at: string
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string
+          gateway_type: string
+          id?: string
+          is_active?: boolean
+          mercadopago_access_token?: string | null
+          mercadopago_public_key?: string | null
+          mercadopago_webhook_url?: string | null
+          mode?: string
+          stripe_publishable_key?: string | null
+          stripe_secret_key?: string | null
+          stripe_webhook_secret?: string | null
+          updated_at?: string
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string
+          gateway_type?: string
+          id?: string
+          is_active?: boolean
+          mercadopago_access_token?: string | null
+          mercadopago_public_key?: string | null
+          mercadopago_webhook_url?: string | null
+          mode?: string
+          stripe_publishable_key?: string | null
+          stripe_secret_key?: string | null
+          stripe_webhook_secret?: string | null
+          updated_at?: string
+          usuario_id?: string
+        }
+        Relationships: []
       }
       planos_assinatura: {
         Row: {
