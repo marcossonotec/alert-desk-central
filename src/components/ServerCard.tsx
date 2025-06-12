@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Settings, Trash2 } from 'lucide-react';
+import { Settings, Trash2, Activity, Cpu, HardDrive, Network } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -17,34 +17,44 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import ServerConfigModal from './ServerConfigModal';
+import ServerMetrics from './ServerMetrics';
 
 interface ServerCardProps {
   server: {
     id: string;
-    name: string;
+    nome: string;
     ip: string;
-    status: 'online' | 'warning' | 'offline';
-    uptime: string;
-    cpu: number;
-    memory: number;
-    lastUpdate: string;
+    status: string;
     provedor?: string;
+    data_criacao?: string;
+    metricas?: Array<{
+      cpu_usage: number;
+      memoria_usage: number;
+      disco_usage: number;
+      timestamp: string;
+    }>;
   };
   onRefresh: () => void;
+  showActions?: boolean;
 }
 
-const ServerCard: React.FC<ServerCardProps> = ({ server, onRefresh }) => {
+const ServerCard: React.FC<ServerCardProps> = ({ server, onRefresh, showActions = true }) => {
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [isMetricsModalOpen, setIsMetricsModalOpen] = useState(false);
   const { toast } = useToast();
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'online':
+      case 'ativo':
         return 'bg-green-500';
-      case 'warning':
-        return 'bg-yellow-500';
-      case 'offline':
+      case 'inativo':
         return 'bg-red-500';
       default:
         return 'bg-gray-500';
@@ -53,11 +63,9 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onRefresh }) => {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'online':
+      case 'ativo':
         return 'Online';
-      case 'warning':
-        return 'Alerta';
-      case 'offline':
+      case 'inativo':
         return 'Offline';
       default:
         return 'Desconhecido';
@@ -88,109 +96,167 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onRefresh }) => {
     }
   };
 
+  // Pegar as métricas mais recentes
+  const latestMetrics = server.metricas?.[0];
+
   return (
     <>
-      <Card className="bg-slate-800/50 border-slate-700 hover:bg-slate-800/70 transition-colors">
+      <Card className="bg-card border-border hover:shadow-md transition-shadow">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg text-white">{server.name}</CardTitle>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsConfigModalOpen(true)}
-                className="text-slate-400 hover:text-white"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-              
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="bg-slate-800 border-slate-700">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-white">
-                      Confirmar remoção
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-slate-300">
-                      Tem certeza de que deseja remover o servidor "{server.name}"? 
-                      Esta ação não pode ser desfeita.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="bg-slate-700 text-white border-slate-600">
-                      Cancelar
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDeleteServer}
-                      className="bg-red-600 hover:bg-red-700"
+            <CardTitle className="text-lg text-foreground">{server.nome}</CardTitle>
+            {showActions && (
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsMetricsModalOpen(true)}
+                  className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  <Activity className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsConfigModalOpen(true)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                     >
-                      Remover
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="bg-card border-border">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-foreground">
+                        Confirmar remoção
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="text-muted-foreground">
+                        Tem certeza de que deseja remover o servidor "{server.nome}"? 
+                        Esta ação não pode ser desfeita e todos os dados de monitoramento serão perdidos.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="bg-secondary text-secondary-foreground border-border">
+                        Cancelar
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteServer}
+                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                      >
+                        Remover
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${getStatusColor(server.status)}`}></div>
-            <Badge variant="outline" className="text-slate-300 border-slate-600">
+            <Badge variant="outline" className="text-muted-foreground border-border">
               {getStatusText(server.status)}
+            </Badge>
+            <Badge variant="outline" className="text-muted-foreground border-border capitalize">
+              {server.provedor}
             </Badge>
           </div>
         </CardHeader>
         
         <CardContent className="space-y-4">
-          <div className="text-slate-300">
-            <p className="text-sm">IP: {server.ip}</p>
-            <p className="text-sm">Uptime: {server.uptime}</p>
+          <div className="text-muted-foreground">
+            <p className="text-sm">IP: <span className="font-mono text-foreground">{server.ip}</span></p>
+            <p className="text-sm">Criado: {new Date(server.data_criacao || '').toLocaleDateString('pt-BR')}</p>
           </div>
           
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">CPU</span>
-              <span className="text-white">{server.cpu}%</span>
+          {latestMetrics && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="flex items-center gap-1">
+                  <Cpu className="h-3 w-3 text-blue-500" />
+                  <span className="text-muted-foreground">CPU:</span>
+                  <span className="text-foreground font-medium">{Math.round(latestMetrics.cpu_usage)}%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Activity className="h-3 w-3 text-green-500" />
+                  <span className="text-muted-foreground">RAM:</span>
+                  <span className="text-foreground font-medium">{Math.round(latestMetrics.memoria_usage)}%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <HardDrive className="h-3 w-3 text-purple-500" />
+                  <span className="text-muted-foreground">Disk:</span>
+                  <span className="text-foreground font-medium">{Math.round(latestMetrics.disco_usage)}%</span>
+                </div>
+              </div>
+
+              {/* Progress bars */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">CPU</span>
+                  <span className="text-foreground">{Math.round(latestMetrics.cpu_usage)}%</span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-1.5">
+                  <div 
+                    className="bg-blue-500 h-1.5 rounded-full transition-all"
+                    style={{ width: `${Math.min(latestMetrics.cpu_usage, 100)}%` }}
+                  ></div>
+                </div>
+
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Memória</span>
+                  <span className="text-foreground">{Math.round(latestMetrics.memoria_usage)}%</span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-1.5">
+                  <div 
+                    className="bg-green-500 h-1.5 rounded-full transition-all"
+                    style={{ width: `${Math.min(latestMetrics.memoria_usage, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
             </div>
-            <div className="w-full bg-slate-700 rounded-full h-2">
-              <div 
-                className="bg-blue-500 h-2 rounded-full transition-all"
-                style={{ width: `${server.cpu}%` }}
-              ></div>
-            </div>
-          </div>
+          )}
           
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Memória</span>
-              <span className="text-white">{server.memory}%</span>
-            </div>
-            <div className="w-full bg-slate-700 rounded-full h-2">
-              <div 
-                className="bg-green-500 h-2 rounded-full transition-all"
-                style={{ width: `${server.memory}%` }}
-              ></div>
-            </div>
-          </div>
-          
-          <div className="text-xs text-slate-500 pt-2 border-t border-slate-700">
-            Última atualização: {server.lastUpdate}
+          <div className="text-xs text-muted-foreground pt-2 border-t border-border">
+            Última atualização: {latestMetrics ? 
+              new Date(latestMetrics.timestamp).toLocaleString('pt-BR') : 
+              'Nunca'
+            }
           </div>
         </CardContent>
       </Card>
 
+      {/* Modal de Configuração */}
       <ServerConfigModal
-        server={server}
+        server={{
+          id: server.id,
+          name: server.nome,
+          ip: server.ip,
+          provedor: server.provedor
+        }}
         isOpen={isConfigModalOpen}
         onClose={() => setIsConfigModalOpen(false)}
         onUpdate={onRefresh}
       />
+
+      {/* Modal de Métricas */}
+      <Dialog open={isMetricsModalOpen} onOpenChange={setIsMetricsModalOpen}>
+        <DialogContent className="bg-card border-border max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">
+              Monitoramento do Servidor
+            </DialogTitle>
+          </DialogHeader>
+          <ServerMetrics serverId={server.id} serverName={server.nome} />
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

@@ -9,6 +9,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Server, Globe } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -57,6 +59,7 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
           nome: formData.nome,
           ip: formData.ip,
           provedor: formData.provedor,
+          data_atualizacao: new Date().toISOString()
         })
         .eq('id', server.id);
 
@@ -83,65 +86,83 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-800 border-slate-700 text-white">
+      <DialogContent className="bg-card border-border max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Configurar Servidor</DialogTitle>
+          <DialogTitle className="flex items-center space-x-2 text-xl text-foreground">
+            <Server className="h-6 w-6 text-primary" />
+            <span>Configurar Servidor</span>
+          </DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="nome">Nome do Servidor</Label>
-            <Input
-              id="nome"
-              value={formData.nome}
-              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-              className="bg-slate-700 border-slate-600 text-white"
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="ip">Endereço IP</Label>
-            <Input
-              id="ip"
-              value={formData.ip}
-              onChange={(e) => setFormData({ ...formData, ip: e.target.value })}
-              className="bg-slate-700 border-slate-600 text-white"
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="provedor">Provedor</Label>
-            <select
-              id="provedor"
-              value={formData.provedor}
-              onChange={(e) => setFormData({ ...formData, provedor: e.target.value })}
-              className="w-full p-2 bg-slate-700 border border-slate-600 rounded-md text-white"
-            >
-              <option value="hetzner">Hetzner Cloud</option>
-              <option value="aws">Amazon AWS</option>
-              <option value="digitalocean">DigitalOcean</option>
-              <option value="vultr">Vultr</option>
-              <option value="outros">Outros</option>
-            </select>
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Card className="bg-card/50 border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center space-x-2 text-foreground">
+                <Server className="h-5 w-5 text-primary" />
+                <span>Informações do Servidor</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nome" className="text-foreground">Nome do Servidor</Label>
+                  <Input
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    className="bg-background border-border text-foreground"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ip" className="text-foreground">Endereço IP</Label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="ip"
+                      value={formData.ip}
+                      onChange={(e) => setFormData({ ...formData, ip: e.target.value })}
+                      className="bg-background border-border text-foreground pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="provedor" className="text-foreground">Provedor</Label>
+                <select
+                  id="provedor"
+                  value={formData.provedor}
+                  onChange={(e) => setFormData({ ...formData, provedor: e.target.value })}
+                  className="w-full p-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="hetzner">Hetzner Cloud</option>
+                  <option value="aws">Amazon AWS</option>
+                  <option value="digitalocean">DigitalOcean</option>
+                  <option value="vultr">Vultr</option>
+                  <option value="linode">Linode</option>
+                  <option value="outros">Outros</option>
+                </select>
+              </div>
+            </CardContent>
+          </Card>
           
           <div className="flex justify-end gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="border-slate-600 text-slate-300"
+              className="border-border text-muted-foreground hover:text-foreground hover:bg-accent"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              {isLoading ? 'Salvando...' : 'Salvar'}
+              {isLoading ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </div>
         </form>

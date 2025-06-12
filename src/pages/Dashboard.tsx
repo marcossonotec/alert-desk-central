@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import ThemeToggle from '@/components/ThemeToggle';
 import Footer from '@/components/Footer';
 import AddServerModal from '@/components/AddServerModal';
+import ServerCard from '@/components/ServerCard';
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
@@ -41,15 +42,32 @@ const Dashboard = () => {
       if (profileError) throw profileError;
       setProfile(profileData);
 
-      // Carregar servidores do usuário
+      // Carregar servidores do usuário com métricas mais recentes
       const { data: serversData, error: serversError } = await supabase
         .from('servidores')
-        .select('*')
+        .select(`
+          *,
+          metricas (
+            cpu_usage,
+            memoria_usage,
+            disco_usage,
+            timestamp
+          )
+        `)
         .eq('usuario_id', user.id)
         .order('data_criacao', { ascending: false });
 
       if (serversError) throw serversError;
-      setServers(serversData || []);
+
+      // Ordenar métricas por timestamp descendente para cada servidor
+      const serversWithSortedMetrics = (serversData || []).map(server => ({
+        ...server,
+        metricas: (server.metricas || []).sort((a: any, b: any) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
+      }));
+
+      setServers(serversWithSortedMetrics);
 
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
@@ -96,25 +114,36 @@ const Dashboard = () => {
   // Verificar se é admin pelo email ou pelo plano
   const isAdmin = user?.email === 'admin@flowserv.com.br' || profile?.plano_ativo === 'admin';
 
+  // Calcular estatísticas
+  const onlineServers = servers.filter(s => s.status === 'ativo').length;
+  const serversWithAlerts = servers.filter(s => {
+    const latestMetrics = s.metricas?.[0];
+    return latestMetrics && (
+      latestMetrics.cpu_usage > 80 || 
+      latestMetrics.memoria_usage > 90 || 
+      latestMetrics.disco_usage > 90
+    );
+  }).length;
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <p className="text-gray-600 dark:text-gray-400">Carregando dashboard...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Carregando dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+      <header className="bg-card shadow-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-blue-600 dark:text-blue-400">
+              <h1 className="text-xl font-semibold text-primary">
                 FlowServ
               </h1>
-              <span className="ml-4 text-gray-600 dark:text-gray-400">Dashboard</span>
+              <span className="ml-4 text-muted-foreground">Dashboard</span>
             </div>
             <div className="flex items-center space-x-4">
               <ThemeToggle />
@@ -128,7 +157,7 @@ const Dashboard = () => {
               <Button 
                 variant="ghost" 
                 onClick={() => navigate('/profile')}
-                className="text-gray-600 dark:text-gray-400"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <User className="h-4 w-4 mr-2" />
                 Perfil
@@ -138,7 +167,7 @@ const Dashboard = () => {
                 <Button 
                   variant="ghost" 
                   onClick={() => navigate('/admin')}
-                  className="text-gray-600 dark:text-gray-400"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <Settings className="h-4 w-4 mr-2" />
                   Admin
@@ -148,7 +177,7 @@ const Dashboard = () => {
               <Button 
                 variant="ghost" 
                 onClick={handleSignOut}
-                className="text-red-600 dark:text-red-400"
+                className="text-destructive hover:text-destructive/90"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Sair
@@ -162,61 +191,59 @@ const Dashboard = () => {
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-2xl font-bold text-foreground mb-2">
             Bem-vindo, {profile?.nome_completo || 'Usuário'}!
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted-foreground">
             Monitore e gerencie seus servidores em um só lugar
           </p>
         </div>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <Card className="bg-card border-border">
             <CardContent className="p-6">
               <div className="flex items-center">
-                <Server className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                <Server className="h-8 w-8 text-primary" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Servidores</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{servers.length}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Servidores</p>
+                  <p className="text-2xl font-bold text-foreground">{servers.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <Card className="bg-card border-border">
             <CardContent className="p-6">
               <div className="flex items-center">
-                <BarChart3 className="h-8 w-8 text-green-600 dark:text-green-400" />
+                <BarChart3 className="h-8 w-8 text-green-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Online</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {servers.filter(s => s.status === 'ativo').length}
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground">Online</p>
+                  <p className="text-2xl font-bold text-foreground">{onlineServers}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <Card className="bg-card border-border">
             <CardContent className="p-6">
               <div className="flex items-center">
-                <Bell className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
+                <Bell className="h-8 w-8 text-yellow-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Alertas</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                  <p className="text-sm font-medium text-muted-foreground">Alertas</p>
+                  <p className="text-2xl font-bold text-foreground">{serversWithAlerts}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <Card className="bg-card border-border">
             <CardContent className="p-6">
               <div className="flex items-center">
-                <Settings className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                <Settings className="h-8 w-8 text-purple-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Plano</p>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                  <p className="text-sm font-medium text-muted-foreground">Plano</p>
+                  <p className="text-sm font-bold text-foreground">
                     {getPlanName(profile?.plano_ativo || 'free')}
                   </p>
                 </div>
@@ -226,12 +253,12 @@ const Dashboard = () => {
         </div>
 
         {/* Servers Section */}
-        <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+        <Card className="bg-card border-border">
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="text-gray-900 dark:text-white">Seus Servidores</CardTitle>
+              <CardTitle className="text-foreground">Seus Servidores</CardTitle>
               <Button 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 onClick={() => setIsAddServerModalOpen(true)}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -242,15 +269,15 @@ const Dashboard = () => {
           <CardContent>
             {servers.length === 0 ? (
               <div className="text-center py-12">
-                <Server className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                <Server className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">
                   Nenhum servidor cadastrado
                 </h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                <p className="text-muted-foreground mb-6">
                   Comece adicionando seu primeiro servidor para monitoramento
                 </p>
                 <Button 
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
                   onClick={() => setIsAddServerModalOpen(true)}
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -260,35 +287,11 @@ const Dashboard = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {servers.map((server) => (
-                  <Card key={server.id} className="bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg text-gray-900 dark:text-white">{server.nome}</CardTitle>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{server.ip}</p>
-                        </div>
-                        <Badge 
-                          variant={server.status === 'ativo' ? 'default' : 'secondary'}
-                          className={server.status === 'ativo' ? 'bg-green-500' : 'bg-red-500'}
-                        >
-                          {server.status === 'ativo' ? 'Online' : 'Offline'}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">{server.provedor}</span>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="sm" className="text-blue-600 dark:text-blue-400">
-                            <BarChart3 className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400">
-                            <Settings className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <ServerCard
+                    key={server.id}
+                    server={server}
+                    onRefresh={loadUserData}
+                  />
                 ))}
               </div>
             )}
