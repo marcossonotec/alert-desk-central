@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Settings, CreditCard, TestTube, Shield, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -50,7 +49,18 @@ const PaymentSettings = () => {
       }
 
       if (data) {
-        setPaymentSettings(data);
+        // Extrair apenas os campos necessários para evitar erro de tipagem
+        setPaymentSettings({
+          gateway_type: data.gateway_type as 'stripe' | 'mercadopago',
+          mode: data.mode as 'test' | 'production',
+          stripe_secret_key: data.stripe_secret_key || '',
+          stripe_publishable_key: data.stripe_publishable_key || '',
+          stripe_webhook_secret: data.stripe_webhook_secret || '',
+          mercadopago_access_token: data.mercadopago_access_token || '',
+          mercadopago_public_key: data.mercadopago_public_key || '',
+          mercadopago_webhook_url: data.mercadopago_webhook_url || '',
+          is_active: data.is_active
+        });
       }
     } catch (error: any) {
       console.error('Erro ao carregar configurações:', error);
@@ -100,10 +110,8 @@ const PaymentSettings = () => {
     setConnectionStatus('idle');
 
     try {
-      // Simular teste de conexão (implementar com edge function posteriormente)
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Por enquanto, vamos simular sucesso se as credenciais estão preenchidas
       const hasCredentials = paymentSettings.gateway_type === 'stripe' 
         ? paymentSettings.stripe_secret_key && paymentSettings.stripe_publishable_key
         : paymentSettings.mercadopago_access_token && paymentSettings.mercadopago_public_key;
@@ -137,6 +145,9 @@ const PaymentSettings = () => {
     setConnectionStatus('idle');
   };
 
+  const isStripeSelected = paymentSettings.gateway_type === 'stripe';
+  const isMercadoPagoSelected = paymentSettings.gateway_type === 'mercadopago';
+
   return (
     <div className="space-y-6">
       <Card className="bg-card border-border">
@@ -147,19 +158,70 @@ const PaymentSettings = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Seleção do Gateway */}
+          {/* Seleção do Gateway com botões visuais */}
           <div className="space-y-4">
             <Label>Gateway de Pagamento</Label>
-            <Tabs 
-              value={paymentSettings.gateway_type} 
-              onValueChange={(value) => updateField('gateway_type', value)}
-            >
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="stripe">Stripe</TabsTrigger>
-                <TabsTrigger value="mercadopago">Mercado Pago</TabsTrigger>
-              </TabsList>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                variant={isStripeSelected ? "default" : "outline"}
+                onClick={() => updateField('gateway_type', 'stripe')}
+                className={`h-20 flex-col space-y-2 ${
+                  isStripeSelected 
+                    ? 'bg-primary text-primary-foreground border-primary' 
+                    : 'border-border hover:bg-accent'
+                }`}
+              >
+                <div className="font-semibold">Stripe</div>
+                <div className="text-xs opacity-80">Gateway internacional</div>
+              </Button>
+              <Button
+                variant={isMercadoPagoSelected ? "default" : "outline"}
+                onClick={() => updateField('gateway_type', 'mercadopago')}
+                className={`h-20 flex-col space-y-2 ${
+                  isMercadoPagoSelected 
+                    ? 'bg-primary text-primary-foreground border-primary' 
+                    : 'border-border hover:bg-accent'
+                }`}
+              >
+                <div className="font-semibold">Mercado Pago</div>
+                <div className="text-xs opacity-80">Gateway brasileiro</div>
+              </Button>
+            </div>
+          </div>
 
-              <TabsContent value="stripe" className="space-y-4">
+          {/* Modo de Operação */}
+          <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/50">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <TestTube className="h-4 w-4" />
+                <Label htmlFor="mode">Modo de Teste</Label>
+                <Switch
+                  id="mode"
+                  checked={paymentSettings.mode === 'test'}
+                  onCheckedChange={(checked) => updateField('mode', checked ? 'test' : 'production')}
+                />
+              </div>
+              <Badge variant={paymentSettings.mode === 'test' ? 'secondary' : 'destructive'}>
+                {paymentSettings.mode === 'test' ? 'Teste' : 'Produção'}
+              </Badge>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              {connectionStatus === 'success' && <CheckCircle className="h-4 w-4 text-green-500" />}
+              {connectionStatus === 'error' && <XCircle className="h-4 w-4 text-red-500" />}
+              <Badge variant={paymentSettings.is_active ? 'default' : 'secondary'}>
+                {paymentSettings.is_active ? 'Ativo' : 'Inativo'}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Campos do Stripe */}
+          {isStripeSelected && (
+            <Card className="border-l-4 border-l-blue-500">
+              <CardHeader>
+                <CardTitle className="text-lg">Configurações Stripe</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="stripe_secret_key">Secret Key</Label>
@@ -194,9 +256,17 @@ const PaymentSettings = () => {
                     />
                   </div>
                 </div>
-              </TabsContent>
+              </CardContent>
+            </Card>
+          )}
 
-              <TabsContent value="mercadopago" className="space-y-4">
+          {/* Campos do Mercado Pago */}
+          {isMercadoPagoSelected && (
+            <Card className="border-l-4 border-l-yellow-500">
+              <CardHeader>
+                <CardTitle className="text-lg">Configurações Mercado Pago</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="mercadopago_access_token">Access Token</Label>
@@ -230,38 +300,12 @@ const PaymentSettings = () => {
                     />
                   </div>
                 </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* Modo e Status */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <TestTube className="h-4 w-4" />
-                <Label htmlFor="mode">Modo de Teste</Label>
-                <Switch
-                  id="mode"
-                  checked={paymentSettings.mode === 'test'}
-                  onCheckedChange={(checked) => updateField('mode', checked ? 'test' : 'production')}
-                />
-              </div>
-              <Badge variant={paymentSettings.mode === 'test' ? 'secondary' : 'destructive'}>
-                {paymentSettings.mode === 'test' ? 'Teste' : 'Produção'}
-              </Badge>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              {connectionStatus === 'success' && <CheckCircle className="h-4 w-4 text-green-500" />}
-              {connectionStatus === 'error' && <XCircle className="h-4 w-4 text-red-500" />}
-              <Badge variant={paymentSettings.is_active ? 'default' : 'secondary'}>
-                {paymentSettings.is_active ? 'Ativo' : 'Inativo'}
-              </Badge>
-            </div>
-          </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Ações */}
-          <div className="flex justify-between pt-4">
+          <div className="flex justify-between pt-4 border-t border-border">
             <Button
               variant="outline"
               onClick={testConnection}
@@ -272,11 +316,15 @@ const PaymentSettings = () => {
               {testingConnection ? 'Testando...' : 'Testar Conexão'}
             </Button>
 
-            <div className="space-x-2">
-              <Switch
-                checked={paymentSettings.is_active}
-                onCheckedChange={(checked) => updateField('is_active', checked)}
-              />
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="is_active">Ativar Gateway</Label>
+                <Switch
+                  id="is_active"
+                  checked={paymentSettings.is_active}
+                  onCheckedChange={(checked) => updateField('is_active', checked)}
+                />
+              </div>
               <Button
                 onClick={savePaymentSettings}
                 disabled={isLoading}
@@ -289,12 +337,12 @@ const PaymentSettings = () => {
         </CardContent>
       </Card>
 
-      {/* Documentação e Links */}
+      {/* Documentação */}
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            Documentação
+            Links Úteis
           </CardTitle>
         </CardHeader>
         <CardContent>

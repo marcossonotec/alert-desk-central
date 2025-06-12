@@ -12,6 +12,7 @@ import DashboardSidebar from '@/components/dashboard/DashboardSidebar';
 import AddServerModal from '@/components/AddServerModal';
 import EvolutionInstanceModal from '@/components/EvolutionInstanceModal';
 import ApplicationsList from '@/components/ApplicationsList';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const Dashboard = () => {
   const [servers, setServers] = useState<any[]>([]);
@@ -118,6 +119,14 @@ const Dashboard = () => {
     <SidebarProvider>
       <div className="min-h-screen bg-background flex w-full">
         <div className="flex-1 flex flex-col">
+          {/* Header com toggle de tema */}
+          <div className="border-b border-border bg-card">
+            <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+              <h1 className="text-2xl font-bold">Dashboard</h1>
+              <ThemeToggle />
+            </div>
+          </div>
+
           <div className="container mx-auto px-4 py-8 space-y-8">
             <DashboardHeader
               onAddServer={() => setShowAddModal(true)}

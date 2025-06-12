@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,7 @@ import AlertsManagement from '@/components/admin/AlertsManagement';
 import SubscriptionManagement from '@/components/admin/SubscriptionManagement';
 import PaymentSettings from '@/components/admin/PaymentSettings';
 import NotificationSettings from '@/components/admin/NotificationSettings';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('users');
@@ -105,20 +105,23 @@ const Admin = () => {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/dashboard')}
-            className="border-border hover:bg-accent"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Painel Administrativo</h1>
-            <p className="text-muted-foreground">Gerencie usuários, servidores e configurações do sistema</p>
+        {/* Header com toggle de tema */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/dashboard')}
+              className="border-border hover:bg-accent"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">Painel Administrativo</h1>
+              <p className="text-muted-foreground">Gerencie usuários, servidores e configurações do sistema</p>
+            </div>
           </div>
+          <ThemeToggle />
         </div>
 
         {/* Tabs */}
