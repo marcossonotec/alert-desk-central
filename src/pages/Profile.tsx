@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { User, Mail, Building, Phone, MessageSquare, CreditCard, LogOut } from 'lucide-react';
+import { User, Mail, Building, Phone, MessageSquare, CreditCard, LogOut, Bell, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,7 @@ const Profile = () => {
     telefone: '',
     whatsapp: '',
     email: '',
+    email_notificacoes: '',
   });
 
   useEffect(() => {
@@ -54,6 +55,7 @@ const Profile = () => {
         telefone: data.telefone || '',
         whatsapp: data.whatsapp || '',
         email: data.email || '',
+        email_notificacoes: data.email_notificacoes || '',
       });
     } catch (error: any) {
       console.error('Erro ao carregar perfil:', error);
@@ -99,6 +101,11 @@ const Profile = () => {
     return true;
   };
 
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleWhatsAppChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     const formatted = formatWhatsAppNumber(value);
@@ -119,6 +126,16 @@ const Profile = () => {
       return;
     }
 
+    // Validar email de notificações se preenchido
+    if (formData.email_notificacoes && !validateEmail(formData.email_notificacoes)) {
+      toast({
+        title: "Email de notificações inválido",
+        description: "Digite um email válido para receber notificações.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { error } = await supabase
@@ -128,6 +145,7 @@ const Profile = () => {
           empresa: formData.empresa,
           telefone: formData.telefone,
           whatsapp: formData.whatsapp,
+          email_notificacoes: formData.email_notificacoes || null,
         })
         .eq('id', user.id);
 
@@ -176,39 +194,43 @@ const Profile = () => {
     return colors[plan as keyof typeof colors] || 'bg-gray-500';
   };
 
+  const getNotificationEmail = () => {
+    return formData.email_notificacoes || formData.email;
+  };
+
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <p className="text-gray-600 dark:text-gray-400">Carregando perfil...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Carregando perfil...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+      <header className="bg-card shadow-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-blue-600 dark:text-blue-400">
+              <h1 className="text-xl font-semibold text-primary">
                 FlowServ
               </h1>
-              <span className="ml-4 text-gray-600 dark:text-gray-400">Configurações</span>
+              <span className="ml-4 text-muted-foreground">Configurações</span>
             </div>
             <div className="flex items-center space-x-4">
               <ThemeToggle />
               <Button 
                 variant="ghost" 
                 onClick={() => navigate('/dashboard')}
-                className="text-gray-600 dark:text-gray-400"
+                className="text-muted-foreground"
               >
                 Dashboard
               </Button>
               <Button 
                 variant="ghost" 
                 onClick={handleSignOut}
-                className="text-red-600 dark:text-red-400"
+                className="text-red-600 hover:text-red-700"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Sair
@@ -223,9 +245,9 @@ const Profile = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Profile Form */}
           <div className="lg:col-span-2">
-            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <CardTitle className="flex items-center text-foreground">
                   <User className="h-5 w-5 mr-2" />
                   Informações Pessoais
                 </CardTitle>
@@ -233,46 +255,71 @@ const Profile = () => {
               <CardContent>
                 <form onSubmit={handleSave} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="nome_completo" className="text-gray-700 dark:text-gray-300">
+                    <Label htmlFor="nome_completo" className="text-foreground">
                       Nome Completo
                     </Label>
                     <Input
                       id="nome_completo"
                       value={formData.nome_completo}
                       onChange={(e) => setFormData({ ...formData, nome_completo: e.target.value })}
-                      className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                      className="bg-background border-border text-foreground"
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-gray-700 dark:text-gray-300">
-                      Email
+                    <Label htmlFor="email" className="text-foreground">
+                      Email de Autenticação
                     </Label>
-                    <Input
-                      id="email"
-                      value={formData.email}
-                      disabled
-                      className="bg-gray-100 dark:bg-gray-600 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400"
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      O email não pode ser alterado e será usado para receber alertas
+                    <div className="relative">
+                      <Input
+                        id="email"
+                        value={formData.email}
+                        disabled
+                        className="bg-muted border-border text-muted-foreground pr-10"
+                      />
+                      <ShieldCheck className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-600" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Este email é usado para fazer login e não pode ser alterado
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email_notificacoes" className="text-foreground">
+                      Email para Notificações (Opcional)
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="email_notificacoes"
+                        value={formData.email_notificacoes}
+                        onChange={(e) => setFormData({ ...formData, email_notificacoes: e.target.value })}
+                        placeholder={formData.email}
+                        className="bg-background border-border text-foreground pr-10"
+                      />
+                      <Bell className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-600" />
+                    </div>
+                    <p className="text-xs text-blue-600">
+                      ✅ Este email receberá todos os alertas e notificações do sistema
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Se não preenchido, as notificações serão enviadas para o email de autenticação
                     </p>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="empresa" className="text-gray-700 dark:text-gray-300">
+                    <Label htmlFor="empresa" className="text-foreground">
                       Empresa
                     </Label>
                     <Input
                       id="empresa"
                       value={formData.empresa}
                       onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
-                      className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                      className="bg-background border-border text-foreground"
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="telefone" className="text-gray-700 dark:text-gray-300">
+                    <Label htmlFor="telefone" className="text-foreground">
                       Telefone
                     </Label>
                     <Input
@@ -280,12 +327,12 @@ const Profile = () => {
                       value={formData.telefone}
                       onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
                       placeholder="(11) 99999-9999"
-                      className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                      className="bg-background border-border text-foreground"
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="whatsapp" className="text-gray-700 dark:text-gray-300">
+                    <Label htmlFor="whatsapp" className="text-foreground">
                       WhatsApp para Alertas
                     </Label>
                     <Input
@@ -293,16 +340,16 @@ const Profile = () => {
                       value={formData.whatsapp}
                       onChange={handleWhatsAppChange}
                       placeholder="+55 11 99999-9999"
-                      className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                      className="bg-background border-border text-foreground"
                     />
                     <div className="space-y-1">
-                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                      <p className="text-xs text-blue-600">
                         ✅ Este número será usado para enviar alertas via WhatsApp
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs text-muted-foreground">
                         Formato obrigatório: +55 (código do país) + DDD + número
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs text-muted-foreground">
                         Disponível apenas em planos pagos com Evolution API configurada
                       </p>
                     </div>
@@ -311,7 +358,7 @@ const Profile = () => {
                   <Button 
                     type="submit" 
                     disabled={isLoading}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
                   >
                     {isLoading ? 'Salvando...' : 'Salvar Alterações'}
                   </Button>
@@ -323,9 +370,9 @@ const Profile = () => {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Plan Info */}
-            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <CardTitle className="flex items-center text-foreground">
                   <CreditCard className="h-5 w-5 mr-2" />
                   Plano Atual
                 </CardTitle>
@@ -350,14 +397,14 @@ const Profile = () => {
             </Card>
 
             {/* Quick Actions */}
-            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-gray-900 dark:text-white">Ações Rápidas</CardTitle>
+                <CardTitle className="text-foreground">Ações Rápidas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button 
                   variant="outline" 
-                  className="w-full justify-start border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                  className="w-full justify-start border-border text-foreground"
                   onClick={() => navigate('/dashboard')}
                 >
                   <User className="h-4 w-4 mr-2" />
@@ -367,7 +414,7 @@ const Profile = () => {
                 {profile.plano_ativo === 'admin' && (
                   <Button 
                     variant="outline" 
-                    className="w-full justify-start border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                    className="w-full justify-start border-border text-foreground"
                     onClick={() => navigate('/admin')}
                   >
                     <Building className="h-4 w-4 mr-2" />
@@ -377,21 +424,43 @@ const Profile = () => {
               </CardContent>
             </Card>
 
-            {/* Notifications Info */}
+            {/* Notifications Configuration */}
             <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
               <CardHeader>
                 <CardTitle className="text-blue-800 dark:text-blue-200 text-sm">
-                  <Mail className="h-4 w-4 mr-2 inline" />
+                  <Bell className="h-4 w-4 mr-2 inline" />
                   Configuração de Alertas
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2 text-xs text-blue-700 dark:text-blue-300">
-                  <p>📧 <strong>Email:</strong> {profile.email}</p>
+                <div className="space-y-3 text-xs">
+                  <div className="flex items-center space-x-2">
+                    <ShieldCheck className="h-4 w-4 text-green-600" />
+                    <div>
+                      <p className="font-medium text-blue-800 dark:text-blue-200">Autenticação:</p>
+                      <p className="text-blue-700 dark:text-blue-300">{formData.email}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Bell className="h-4 w-4 text-blue-600" />
+                    <div>
+                      <p className="font-medium text-blue-800 dark:text-blue-200">Notificações:</p>
+                      <p className="text-blue-700 dark:text-blue-300">{getNotificationEmail()}</p>
+                    </div>
+                  </div>
+
                   {formData.whatsapp && (
-                    <p>📱 <strong>WhatsApp:</strong> {formData.whatsapp}</p>
+                    <div className="flex items-center space-x-2">
+                      <MessageSquare className="h-4 w-4 text-green-600" />
+                      <div>
+                        <p className="font-medium text-blue-800 dark:text-blue-200">WhatsApp:</p>
+                        <p className="text-blue-700 dark:text-blue-300">{formData.whatsapp}</p>
+                      </div>
+                    </div>
                   )}
-                  <p className="text-blue-600 dark:text-blue-400 mt-2">
+                  
+                  <p className="text-blue-600 dark:text-blue-400 mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
                     Os alertas serão enviados para estes contatos quando configurados nos servidores.
                   </p>
                 </div>

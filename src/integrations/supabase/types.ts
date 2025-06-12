@@ -577,6 +577,7 @@ export type Database = {
           data_atualizacao: string | null
           data_criacao: string | null
           email: string
+          email_notificacoes: string | null
           empresa: string | null
           id: string
           nome_completo: string | null
@@ -589,6 +590,7 @@ export type Database = {
           data_atualizacao?: string | null
           data_criacao?: string | null
           email: string
+          email_notificacoes?: string | null
           empresa?: string | null
           id: string
           nome_completo?: string | null
@@ -601,6 +603,7 @@ export type Database = {
           data_atualizacao?: string | null
           data_criacao?: string | null
           email?: string
+          email_notificacoes?: string | null
           empresa?: string | null
           id?: string
           nome_completo?: string | null
