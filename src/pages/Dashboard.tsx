@@ -168,7 +168,7 @@ const Dashboard = () => {
               className="bg-primary hover:bg-primary/90"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Adicionar
+              Adicionar Servidor
             </Button>
             <Button
               onClick={goToAdmin}
@@ -189,16 +189,16 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Cards de estatísticas - Layout melhorado */}
+        {/* Cards de estatísticas */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-card border-border">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">Servidores</p>
-                  <p className="text-xl font-bold text-foreground">{stats.total}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Servidores</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.total}</p>
                 </div>
-                <Server className="h-6 w-6 text-primary" />
+                <Server className="h-8 w-8 text-primary" />
               </div>
             </CardContent>
           </Card>
@@ -207,10 +207,10 @@ const Dashboard = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">Online</p>
-                  <p className="text-xl font-bold text-green-600">{stats.online}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Online</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.online}</p>
                 </div>
-                <Activity className="h-6 w-6 text-green-600" />
+                <Activity className="h-8 w-8 text-green-600" />
               </div>
             </CardContent>
           </Card>
@@ -219,10 +219,10 @@ const Dashboard = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">Alertas</p>
-                  <p className="text-xl font-bold text-orange-600">{stats.alerts_count}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Alertas</p>
+                  <p className="text-2xl font-bold text-orange-600">{stats.alerts_count}</p>
                 </div>
-                <AlertTriangle className="h-6 w-6 text-orange-600" />
+                <AlertTriangle className="h-8 w-8 text-orange-600" />
               </div>
             </CardContent>
           </Card>
@@ -231,10 +231,10 @@ const Dashboard = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">CPU Média</p>
-                  <p className="text-xl font-bold text-blue-600">{avgMetrics.cpu.toFixed(1)}%</p>
+                  <p className="text-sm font-medium text-muted-foreground">CPU Média</p>
+                  <p className="text-2xl font-bold text-blue-600">{avgMetrics.cpu.toFixed(1)}%</p>
                 </div>
-                <TrendingUp className="h-6 w-6 text-blue-600" />
+                <TrendingUp className="h-8 w-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
@@ -266,7 +266,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {servers.map((server) => (
                 <ServerCard
                   key={server.id}
@@ -278,24 +278,24 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Alertas recentes - Layout compacto */}
+        {/* Alertas recentes */}
         {alerts.length > 0 && (
           <div>
             <h2 className="text-xl font-bold text-foreground mb-4">Alertas Ativos</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {alerts.slice(0, 6).map((alert) => (
                 <Card key={alert.id} className="bg-yellow-50 border-yellow-200">
-                  <CardContent className="p-3">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <AlertTriangle className="h-3 w-3 text-yellow-600" />
-                      <span className="font-medium text-yellow-800 capitalize text-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                      <span className="font-medium text-yellow-800 capitalize">
                         {alert.tipo_alerta}
                       </span>
                     </div>
-                    <p className="text-xs text-yellow-700">
+                    <p className="text-sm text-yellow-700 mb-2">
                       {alert.servidores?.nome} - Limite: {alert.limite_valor}%
                     </p>
-                    <div className="mt-1 text-xs text-yellow-600">
+                    <div className="text-xs text-yellow-600">
                       Canais: {alert.canal_notificacao?.join(', ')}
                     </div>
                   </CardContent>
@@ -310,7 +310,7 @@ const Dashboard = () => {
       <AddServerModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onUpdate={loadData}
+        onServerAdded={loadData}
       />
 
       <EvolutionInstanceModal

@@ -73,7 +73,7 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
 
       // Se não há alertas, criar os padrões
       if (!alertsData || alertsData.length === 0) {
-        createDefaultAlerts();
+        await createDefaultAlerts();
       }
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
@@ -88,25 +88,32 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
   };
 
   const createDefaultAlerts = async () => {
-    const defaultAlerts = [
-      { tipo_alerta: 'cpu', limite_valor: 80 },
-      { tipo_alerta: 'memoria', limite_valor: 85 },
-      { tipo_alerta: 'disco', limite_valor: 90 }
-    ];
+    try {
+      const defaultAlerts = [
+        { tipo_alerta: 'cpu', limite_valor: 80 },
+        { tipo_alerta: 'memoria', limite_valor: 85 },
+        { tipo_alerta: 'disco', limite_valor: 90 }
+      ];
 
-    for (const alert of defaultAlerts) {
-      await supabase
+      const alertsToInsert = defaultAlerts.map(alert => ({
+        ...alert,
+        servidor_id: server.id,
+        usuario_id: user?.id,
+        canal_notificacao: ['email'],
+        ativo: true
+      }));
+
+      const { error } = await supabase
         .from('alertas')
-        .insert({
-          ...alert,
-          servidor_id: server.id,
-          usuario_id: user?.id,
-          canal_notificacao: ['email'],
-          ativo: true
-        });
-    }
+        .insert(alertsToInsert);
 
-    loadData();
+      if (error) throw error;
+
+      // Recarregar dados
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao criar alertas padrão:', error);
+    }
   };
 
   const updateAlert = async (alertId: string, updates: any) => {
@@ -123,7 +130,10 @@ const AlertConfigModal: React.FC<AlertConfigModalProps> = ({
         description: "Configuração salva com sucesso.",
       });
       
-      loadData();
+      // Atualizar estado local sem recarregar tudo
+      setAlerts(prev => prev.map(alert => 
+        alert.id === alertId ? { ...alert, ...updates } : alert
+      ));
     } catch (error: any) {
       console.error('Erro ao atualizar alerta:', error);
       toast({

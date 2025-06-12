@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, QrCode, Trash2, RefreshCw, Plus, CheckCircle, XCircle } from 'lucide-react';
+import { MessageSquare, QrCode, Trash2, RefreshCw, Plus, CheckCircle, XCircle, Crown, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -30,6 +30,7 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
   const [qrCode, setQrCode] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [formData, setFormData] = useState({
     instance_name: ''
   });
@@ -45,6 +46,17 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
   const getCurrentUser = async () => {
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     setUser(currentUser);
+
+    if (currentUser) {
+      // Buscar perfil do usuário para verificar plano
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('plano_ativo')
+        .eq('id', currentUser.id)
+        .single();
+      
+      setUserProfile(profile);
+    }
   };
 
   const loadInstances = async () => {
@@ -72,7 +84,31 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
     }
   };
 
+  const canCreateInstance = () => {
+    const plan = userProfile?.plano_ativo || 'free';
+    
+    if (plan === 'free') {
+      return { allowed: false, reason: 'Plano gratuito não permite instâncias WhatsApp. Upgrade para Profissional ou Empresarial.' };
+    }
+    
+    if (instances.length >= 1) {
+      return { allowed: false, reason: 'Limite de 1 instância WhatsApp atingido para seu plano.' };
+    }
+    
+    return { allowed: true, reason: '' };
+  };
+
   const createInstance = async () => {
+    const canCreate = canCreateInstance();
+    if (!canCreate.allowed) {
+      toast({
+        title: "Limite atingido",
+        description: canCreate.reason,
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setIsLoading(true);
       
@@ -185,6 +221,8 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
       });
 
       loadInstances();
+      setSelectedInstance(null);
+      setQrCode('');
     } catch (error: any) {
       console.error('Erro ao deletar instância:', error);
       toast({
@@ -209,6 +247,12 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
     return status === 'connected' ? CheckCircle : XCircle;
   };
 
+  const getPlanIcon = (plan: string) => {
+    return plan === 'empresarial' ? Crown : Zap;
+  };
+
+  const canCreate = canCreateInstance();
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-card border-border max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -220,20 +264,57 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
         </DialogHeader>
         
         <div className="space-y-6">
+          {/* Informações do plano */}
+          {userProfile && (
+            <Card className="bg-card/50 border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    {getPlanIcon(userProfile.plano_ativo) === Crown ? (
+                      <Crown className="h-5 w-5 text-yellow-600" />
+                    ) : (
+                      <Zap className="h-5 w-5 text-blue-600" />
+                    )}
+                    <span className="font-medium capitalize">Plano {userProfile.plano_ativo}</span>
+                    <span className="text-sm text-muted-foreground">
+                      - {userProfile.plano_ativo === 'free' ? '0' : '1'} instância permitida
+                    </span>
+                  </div>
+                  <Badge variant={userProfile.plano_ativo === 'free' ? 'destructive' : 'default'}>
+                    {instances.length}/1 usadas
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Botão para criar nova instância */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium">Instâncias WhatsApp</h3>
             <Button
               onClick={() => setShowCreateForm(true)}
               className="bg-primary hover:bg-primary/90"
+              disabled={!canCreate.allowed}
             >
               <Plus className="h-4 w-4 mr-2" />
               Nova Instância
             </Button>
           </div>
 
+          {/* Aviso de limitação */}
+          {!canCreate.allowed && (
+            <Card className="bg-yellow-50 border-yellow-200">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <MessageSquare className="h-5 w-5 text-yellow-600" />
+                  <span className="text-yellow-800">{canCreate.reason}</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Formulário de criação */}
-          {showCreateForm && (
+          {showCreateForm && canCreate.allowed && (
             <Card className="bg-card/50 border-border">
               <CardHeader>
                 <CardTitle>Criar Nova Instância</CardTitle>
@@ -267,7 +348,7 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
           )}
 
           {/* Lista de instâncias */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {instances.map((instance) => {
               const StatusIcon = getStatusIcon(instance.status);
               return (
@@ -331,7 +412,10 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
                 Nenhuma instância WhatsApp
               </h3>
               <p className="text-muted-foreground mb-4">
-                Crie sua primeira instância para receber alertas via WhatsApp.
+                {canCreate.allowed 
+                  ? 'Crie sua primeira instância para receber alertas via WhatsApp.'
+                  : canCreate.reason
+                }
               </p>
             </div>
           )}
@@ -345,9 +429,17 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
               <CardContent className="text-center">
                 <div className="bg-white p-4 rounded-lg inline-block mb-4">
                   <img 
-                    src={`data:image/png;base64,${qrCode}`} 
+                    src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`}
                     alt="QR Code"
                     className="max-w-64 max-h-64"
+                    onError={(e) => {
+                      console.error('Erro ao carregar QR Code:', qrCode);
+                      toast({
+                        title: "Erro no QR Code",
+                        description: "Não foi possível carregar o QR Code.",
+                        variant: "destructive"
+                      });
+                    }}
                   />
                 </div>
                 <p className="text-sm text-muted-foreground">
