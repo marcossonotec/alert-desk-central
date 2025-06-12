@@ -54,19 +54,47 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
     }
   };
 
-  const handleUpgrade = async (planeName: string) => {
-    setIsLoading(true);
-    try {
+  const handleUpgrade = async (planeName: string, preco: number) => {
+    if (planeName === 'free') {
       toast({
-        title: "Upgrade solicitado",
-        description: `Solicitação de upgrade para o plano ${planeName} enviada. Você será redirecionado para o pagamento.`,
+        title: "Plano gratuito",
+        description: "Você já pode usar o plano gratuito!",
       });
-      onClose();
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      // Criar checkout session baseado no gateway configurado
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          planeName,
+          preco,
+          currency: 'BRL'
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // Abrir checkout em nova aba
+        window.open(data.url, '_blank');
+        
+        toast({
+          title: "Redirecionando para pagamento",
+          description: `Você será redirecionado para o checkout do ${planeName}.`,
+        });
+        
+        onClose();
+      } else {
+        throw new Error('URL de checkout não fornecida');
+      }
     } catch (error: any) {
-      console.error('Erro ao solicitar upgrade:', error);
+      console.error('Erro ao processar upgrade:', error);
       toast({
         title: "Erro no upgrade",
-        description: "Não foi possível processar a solicitação de upgrade.",
+        description: error.message || "Não foi possível processar a solicitação de upgrade.",
         variant: "destructive"
       });
     } finally {
@@ -80,7 +108,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
     if (recursos.metricas_basicas) features.push("Métricas básicas");
     if (recursos.metricas_avancadas) features.push("Métricas avançadas");
     if (recursos.alertas_email) features.push("Alertas por email");
-    if (recursos.alertas_whatsapp) features.push("1 instância WhatsApp");
+    if (recursos.alertas_whatsapp) features.push("1 instância WhatsApp Business");
     if (recursos.suporte_prioritario) features.push("Suporte prioritário");
     if (recursos.duracao_dias) features.push(`${recursos.duracao_dias} dias grátis`);
     
@@ -154,7 +182,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
                 </ul>
                 
                 <Button
-                  onClick={() => handleUpgrade(plan.nome)}
+                  onClick={() => handleUpgrade(plan.nome, plan.preco_mensal)}
                   disabled={isLoading || currentPlan === plan.nome}
                   className={`w-full ${
                     currentPlan === plan.nome
@@ -170,6 +198,8 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
                     ? 'Plano Atual' 
                     : plan.nome === 'free' 
                     ? 'Começar Grátis' 
+                    : isLoading
+                    ? 'Processando...'
                     : 'Escolher Plano'
                   }
                 </Button>

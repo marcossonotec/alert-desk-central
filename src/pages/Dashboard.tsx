@@ -133,6 +133,7 @@ const Dashboard = () => {
               onOpenWhatsApp={() => setShowWhatsAppModal(true)}
               onGoToAdmin={goToAdmin}
               onLogout={handleLogout}
+              userProfile={userProfile}
             />
 
             <DashboardStats 

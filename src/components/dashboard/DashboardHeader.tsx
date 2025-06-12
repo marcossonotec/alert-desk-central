@@ -8,6 +8,7 @@ interface DashboardHeaderProps {
   onOpenWhatsApp: () => void;
   onGoToAdmin: () => void;
   onLogout: () => void;
+  userProfile?: any;
 }
 
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -15,7 +16,10 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onOpenWhatsApp,
   onGoToAdmin,
   onLogout,
+  userProfile,
 }) => {
+  const isAdmin = userProfile?.plano_ativo === 'admin';
+
   return (
     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
       <div>
@@ -28,7 +32,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           className="bg-green-600 hover:bg-green-700 text-white"
         >
           <MessageSquare className="h-4 w-4 mr-2" />
-          WhatsApp
+          WhatsApp Business
         </Button>
         <Button 
           onClick={onAddServer}
@@ -37,14 +41,16 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           <Plus className="h-4 w-4 mr-2" />
           Adicionar Servidor
         </Button>
-        <Button
-          onClick={onGoToAdmin}
-          variant="outline"
-          className="border-border hover:bg-accent"
-        >
-          <Settings className="h-4 w-4 mr-2" />
-          Admin
-        </Button>
+        {isAdmin && (
+          <Button
+            onClick={onGoToAdmin}
+            variant="outline"
+            className="border-border hover:bg-accent"
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Admin
+          </Button>
+        )}
         <Button
           onClick={onLogout}
           variant="outline"

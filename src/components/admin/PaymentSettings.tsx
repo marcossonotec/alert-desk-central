@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Settings, CreditCard, TestTube, Shield, CheckCircle, XCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Settings, CreditCard, TestTube, Shield, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -145,234 +145,271 @@ const PaymentSettings = () => {
     setConnectionStatus('idle');
   };
 
+  const getWebhookUrl = () => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/webhook/payment?provider=${paymentSettings.gateway_type}`;
+  };
+
   const isStripeSelected = paymentSettings.gateway_type === 'stripe';
   const isMercadoPagoSelected = paymentSettings.gateway_type === 'mercadopago';
 
   return (
-    <div className="space-y-6">
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Configurações de Pagamento
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Seleção do Gateway com botões visuais */}
-          <div className="space-y-4">
-            <Label>Gateway de Pagamento</Label>
+    <TooltipProvider>
+      <div className="space-y-6">
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Configurações de Pagamento
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Seleção do Gateway com botões visuais */}
+            <div className="space-y-4">
+              <Label>Gateway de Pagamento</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button
+                  variant={isStripeSelected ? "default" : "outline"}
+                  onClick={() => updateField('gateway_type', 'stripe')}
+                  className={`h-20 flex-col space-y-2 ${
+                    isStripeSelected 
+                      ? 'bg-primary text-primary-foreground border-primary' 
+                      : 'border-border hover:bg-accent'
+                  }`}
+                >
+                  <div className="font-semibold">Stripe</div>
+                  <div className="text-xs opacity-80">Gateway internacional</div>
+                </Button>
+                <Button
+                  variant={isMercadoPagoSelected ? "default" : "outline"}
+                  onClick={() => updateField('gateway_type', 'mercadopago')}
+                  className={`h-20 flex-col space-y-2 ${
+                    isMercadoPagoSelected 
+                      ? 'bg-primary text-primary-foreground border-primary' 
+                      : 'border-border hover:bg-accent'
+                  }`}
+                >
+                  <div className="font-semibold">Mercado Pago</div>
+                  <div className="text-xs opacity-80">Gateway brasileiro</div>
+                </Button>
+              </div>
+            </div>
+
+            {/* Modo de Operação */}
+            <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/50">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <TestTube className="h-4 w-4" />
+                  <Label htmlFor="mode">Modo de Teste</Label>
+                  <Switch
+                    id="mode"
+                    checked={paymentSettings.mode === 'test'}
+                    onCheckedChange={(checked) => updateField('mode', checked ? 'test' : 'production')}
+                  />
+                </div>
+                <Badge variant={paymentSettings.mode === 'test' ? 'secondary' : 'destructive'}>
+                  {paymentSettings.mode === 'test' ? 'Teste' : 'Produção'}
+                </Badge>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                {connectionStatus === 'success' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                {connectionStatus === 'error' && <XCircle className="h-4 w-4 text-red-500" />}
+                <Badge variant={paymentSettings.is_active ? 'default' : 'secondary'}>
+                  {paymentSettings.is_active ? 'Ativo' : 'Inativo'}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Campos do Stripe */}
+            {isStripeSelected && (
+              <Card className="border-l-4 border-l-blue-500">
+                <CardHeader>
+                  <CardTitle className="text-lg">Configurações Stripe</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="stripe_secret_key">Secret Key</Label>
+                      <Input
+                        id="stripe_secret_key"
+                        type="password"
+                        placeholder="sk_test_..."
+                        value={paymentSettings.stripe_secret_key}
+                        onChange={(e) => updateField('stripe_secret_key', e.target.value)}
+                        className="bg-background border-border"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="stripe_publishable_key">Publishable Key</Label>
+                      <Input
+                        id="stripe_publishable_key"
+                        placeholder="pk_test_..."
+                        value={paymentSettings.stripe_publishable_key}
+                        onChange={(e) => updateField('stripe_publishable_key', e.target.value)}
+                        className="bg-background border-border"
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="stripe_webhook_secret">Webhook Secret</Label>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">Opcional: Configure apenas se usar webhooks para notificações automáticas de pagamento.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <Input
+                        id="stripe_webhook_secret"
+                        type="password"
+                        placeholder="whsec_... (opcional)"
+                        value={paymentSettings.stripe_webhook_secret}
+                        onChange={(e) => updateField('stripe_webhook_secret', e.target.value)}
+                        className="bg-background border-border"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Campos do Mercado Pago */}
+            {isMercadoPagoSelected && (
+              <Card className="border-l-4 border-l-yellow-500">
+                <CardHeader>
+                  <CardTitle className="text-lg">Configurações Mercado Pago</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="mercadopago_access_token">Access Token (Chave Secreta)</Label>
+                      <Input
+                        id="mercadopago_access_token"
+                        type="password"
+                        placeholder="APP_USR-..."
+                        value={paymentSettings.mercadopago_access_token}
+                        onChange={(e) => updateField('mercadopago_access_token', e.target.value)}
+                        className="bg-background border-border"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="mercadopago_public_key">Public Key (Chave Pública)</Label>
+                      <Input
+                        id="mercadopago_public_key"
+                        placeholder="APP_USR-..."
+                        value={paymentSettings.mercadopago_public_key}
+                        onChange={(e) => updateField('mercadopago_public_key', e.target.value)}
+                        className="bg-background border-border"
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="mercadopago_webhook_url">Webhook URL</Label>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">
+                              Opcional: Use para notificações automáticas. 
+                              URL sugerida: {getWebhookUrl()}
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <Input
+                        id="mercadopago_webhook_url"
+                        placeholder={getWebhookUrl()}
+                        value={paymentSettings.mercadopago_webhook_url}
+                        onChange={(e) => updateField('mercadopago_webhook_url', e.target.value)}
+                        className="bg-background border-border"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Dica: {getWebhookUrl()}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Ações */}
+            <div className="flex justify-between pt-4 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={testConnection}
+                disabled={testingConnection}
+                className="border-border hover:bg-accent"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                {testingConnection ? 'Testando...' : 'Testar Conexão'}
+              </Button>
+
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="is_active">Ativar Gateway</Label>
+                  <Switch
+                    id="is_active"
+                    checked={paymentSettings.is_active}
+                    onCheckedChange={(checked) => updateField('is_active', checked)}
+                  />
+                </div>
+                <Button
+                  onClick={savePaymentSettings}
+                  disabled={isLoading}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  {isLoading ? 'Salvando...' : 'Salvar Configurações'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Documentação */}
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Configuração Rápida
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Button
-                variant={isStripeSelected ? "default" : "outline"}
-                onClick={() => updateField('gateway_type', 'stripe')}
-                className={`h-20 flex-col space-y-2 ${
-                  isStripeSelected 
-                    ? 'bg-primary text-primary-foreground border-primary' 
-                    : 'border-border hover:bg-accent'
-                }`}
-              >
-                <div className="font-semibold">Stripe</div>
-                <div className="text-xs opacity-80">Gateway internacional</div>
-              </Button>
-              <Button
-                variant={isMercadoPagoSelected ? "default" : "outline"}
-                onClick={() => updateField('gateway_type', 'mercadopago')}
-                className={`h-20 flex-col space-y-2 ${
-                  isMercadoPagoSelected 
-                    ? 'bg-primary text-primary-foreground border-primary' 
-                    : 'border-border hover:bg-accent'
-                }`}
-              >
-                <div className="font-semibold">Mercado Pago</div>
-                <div className="text-xs opacity-80">Gateway brasileiro</div>
-              </Button>
-            </div>
-          </div>
-
-          {/* Modo de Operação */}
-          <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/50">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <TestTube className="h-4 w-4" />
-                <Label htmlFor="mode">Modo de Teste</Label>
-                <Switch
-                  id="mode"
-                  checked={paymentSettings.mode === 'test'}
-                  onCheckedChange={(checked) => updateField('mode', checked ? 'test' : 'production')}
-                />
+              <div className="space-y-2">
+                <h4 className="font-medium">Stripe (Internacional)</h4>
+                <p className="text-sm text-muted-foreground">
+                  1. Acesse o dashboard do Stripe<br/>
+                  2. Copie as chaves Secret Key e Publishable Key<br/>
+                  3. Webhook é opcional para notificações automáticas
+                </p>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer">
+                    Acessar Stripe
+                  </a>
+                </Button>
               </div>
-              <Badge variant={paymentSettings.mode === 'test' ? 'secondary' : 'destructive'}>
-                {paymentSettings.mode === 'test' ? 'Teste' : 'Produção'}
-              </Badge>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              {connectionStatus === 'success' && <CheckCircle className="h-4 w-4 text-green-500" />}
-              {connectionStatus === 'error' && <XCircle className="h-4 w-4 text-red-500" />}
-              <Badge variant={paymentSettings.is_active ? 'default' : 'secondary'}>
-                {paymentSettings.is_active ? 'Ativo' : 'Inativo'}
-              </Badge>
-            </div>
-          </div>
-
-          {/* Campos do Stripe */}
-          {isStripeSelected && (
-            <Card className="border-l-4 border-l-blue-500">
-              <CardHeader>
-                <CardTitle className="text-lg">Configurações Stripe</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="stripe_secret_key">Secret Key</Label>
-                    <Input
-                      id="stripe_secret_key"
-                      type="password"
-                      placeholder="sk_test_..."
-                      value={paymentSettings.stripe_secret_key}
-                      onChange={(e) => updateField('stripe_secret_key', e.target.value)}
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="stripe_publishable_key">Publishable Key</Label>
-                    <Input
-                      id="stripe_publishable_key"
-                      placeholder="pk_test_..."
-                      value={paymentSettings.stripe_publishable_key}
-                      onChange={(e) => updateField('stripe_publishable_key', e.target.value)}
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="stripe_webhook_secret">Webhook Secret</Label>
-                    <Input
-                      id="stripe_webhook_secret"
-                      type="password"
-                      placeholder="whsec_..."
-                      value={paymentSettings.stripe_webhook_secret}
-                      onChange={(e) => updateField('stripe_webhook_secret', e.target.value)}
-                      className="bg-background border-border"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Campos do Mercado Pago */}
-          {isMercadoPagoSelected && (
-            <Card className="border-l-4 border-l-yellow-500">
-              <CardHeader>
-                <CardTitle className="text-lg">Configurações Mercado Pago</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="mercadopago_access_token">Access Token</Label>
-                    <Input
-                      id="mercadopago_access_token"
-                      type="password"
-                      placeholder="APP_USR-..."
-                      value={paymentSettings.mercadopago_access_token}
-                      onChange={(e) => updateField('mercadopago_access_token', e.target.value)}
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="mercadopago_public_key">Public Key</Label>
-                    <Input
-                      id="mercadopago_public_key"
-                      placeholder="APP_PUBLIC-..."
-                      value={paymentSettings.mercadopago_public_key}
-                      onChange={(e) => updateField('mercadopago_public_key', e.target.value)}
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="mercadopago_webhook_url">Webhook URL</Label>
-                    <Input
-                      id="mercadopago_webhook_url"
-                      placeholder="https://seu-site.com/webhook/mercadopago"
-                      value={paymentSettings.mercadopago_webhook_url}
-                      onChange={(e) => updateField('mercadopago_webhook_url', e.target.value)}
-                      className="bg-background border-border"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Ações */}
-          <div className="flex justify-between pt-4 border-t border-border">
-            <Button
-              variant="outline"
-              onClick={testConnection}
-              disabled={testingConnection}
-              className="border-border hover:bg-accent"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              {testingConnection ? 'Testando...' : 'Testar Conexão'}
-            </Button>
-
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Label htmlFor="is_active">Ativar Gateway</Label>
-                <Switch
-                  id="is_active"
-                  checked={paymentSettings.is_active}
-                  onCheckedChange={(checked) => updateField('is_active', checked)}
-                />
+              <div className="space-y-2">
+                <h4 className="font-medium">Mercado Pago (Brasil)</h4>
+                <p className="text-sm text-muted-foreground">
+                  1. Acesse o painel do Mercado Pago<br/>
+                  2. Copie Access Token e Public Key<br/>
+                  3. Webhook é opcional para notificações automáticas
+                </p>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="https://www.mercadopago.com.br/developers/panel" target="_blank" rel="noopener noreferrer">
+                    Acessar Mercado Pago
+                  </a>
+                </Button>
               </div>
-              <Button
-                onClick={savePaymentSettings}
-                disabled={isLoading}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                {isLoading ? 'Salvando...' : 'Salvar Configurações'}
-              </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Documentação */}
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Links Úteis
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <h4 className="font-medium">Stripe</h4>
-              <p className="text-sm text-muted-foreground">
-                Configure suas chaves de API do Stripe para aceitar pagamentos recorrentes.
-              </p>
-              <Button variant="outline" size="sm" asChild>
-                <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer">
-                  Acessar Dashboard
-                </a>
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-medium">Mercado Pago</h4>
-              <p className="text-sm text-muted-foreground">
-                Configure suas credenciais do Mercado Pago para aceitar pagamentos no Brasil.
-              </p>
-              <Button variant="outline" size="sm" asChild>
-                <a href="https://www.mercadopago.com.br/developers/panel" target="_blank" rel="noopener noreferrer">
-                  Acessar Painel
-                </a>
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+      </div>
+    </TooltipProvider>
   );
 };
 
