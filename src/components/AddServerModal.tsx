@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Server, Globe, Key, Webhook } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Server, Globe, Key, Webhook, Cloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -25,6 +26,15 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const provedores = [
+    { value: 'hetzner', label: 'Hetzner Cloud' },
+    { value: 'aws', label: 'Amazon AWS' },
+    { value: 'digitalocean', label: 'DigitalOcean' },
+    { value: 'vultr', label: 'Vultr' },
+    { value: 'linode', label: 'Linode' },
+    { value: 'outros', label: 'Outros' },
+  ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -145,6 +155,25 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
                       required
                     />
                   </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="provedor" className="text-foreground">Provedor</Label>
+                <div className="relative">
+                  <Cloud className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                  <Select value={formData.provedor} onValueChange={(value) => setFormData({ ...formData, provedor: value })}>
+                    <SelectTrigger className="bg-background border-border pl-10">
+                      <SelectValue placeholder="Selecione o provedor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {provedores.map((provedor) => (
+                        <SelectItem key={provedor.value} value={provedor.value}>
+                          {provedor.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>

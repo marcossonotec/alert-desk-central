@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,8 @@ import {
   Settings, 
   Eye, 
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -39,10 +40,14 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [metrics, setMetrics] = useState<any>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
 
-  const loadMetrics = async () => {
+  const loadMetrics = async (showLoader = false) => {
     try {
+      if (showLoader) setIsUpdating(true);
+      
       const { data, error } = await supabase
         .from('metricas')
         .select('*')
@@ -54,11 +59,25 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
       
       if (data && data.length > 0) {
         setMetrics(data[0]);
+        setLastUpdate(new Date());
       }
     } catch (error) {
       console.error('Erro ao carregar métricas:', error);
+    } finally {
+      if (showLoader) setIsUpdating(false);
     }
   };
+
+  // Atualização automática a cada 30 segundos
+  useEffect(() => {
+    loadMetrics();
+    
+    const interval = setInterval(() => {
+      loadMetrics();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [server.id]);
 
   const deleteServer = async () => {
     if (!window.confirm('Tem certeza que deseja excluir este servidor? Esta ação não pode ser desfeita.')) {
@@ -93,10 +112,6 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
     }
   };
 
-  React.useEffect(() => {
-    loadMetrics();
-  }, [server.id]);
-
   const getMetricColor = (value: number, type: string) => {
     if (type === 'disco' && value > 90) return 'text-red-500';
     if (value > 85) return 'text-red-500';
@@ -113,6 +128,21 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
     }
   };
 
+  const formatTimeSince = (date: Date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) {
+      return `${diffInSeconds}s atrás`;
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `${minutes}m atrás`;
+    } else {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return `${hours}h atrás`;
+    }
+  };
+
   return (
     <>
       <Card className="bg-card border-border hover:shadow-md transition-shadow">
@@ -122,14 +152,30 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
               <Server className="h-5 w-5 text-primary" />
               <span className="text-foreground">{server.nome}</span>
             </CardTitle>
-            <Badge className={`${getStatusColor(server.status)} text-white`}>
-              {server.status || 'ativo'}
-            </Badge>
+            <div className="flex items-center space-x-2">
+              <Badge className={`${getStatusColor(server.status)} text-white`}>
+                {server.status || 'ativo'}
+              </Badge>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => loadMetrics(true)}
+                disabled={isUpdating}
+                className="h-6 w-6 p-0"
+              >
+                <RefreshCw className={`h-3 w-3 ${isUpdating ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
           <p className="text-sm text-muted-foreground">{server.ip}</p>
           <p className="text-xs text-muted-foreground">
             Provedor: {server.provedor || 'Não informado'}
           </p>
+          {lastUpdate && (
+            <p className="text-xs text-muted-foreground">
+              Última atualização: {formatTimeSince(lastUpdate)}
+            </p>
+          )}
         </CardHeader>
         
         <CardContent className="space-y-4">

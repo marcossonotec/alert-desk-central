@@ -154,7 +154,10 @@ const Dashboard = () => {
               onUpdate={loadData}
             />
 
-            <ActiveAlerts alerts={alerts} />
+            <ActiveAlerts 
+              servers={servers}
+              onUpdate={loadData}
+            />
           </div>
         </div>
 
