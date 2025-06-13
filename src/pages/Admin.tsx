@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users, Server, AlertTriangle, CreditCard, Settings, Mail } from 'lucide-react';
+import { ArrowLeft, Users, Server, AlertTriangle, CreditCard, Settings, Mail, Code, TestTube } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,12 +13,15 @@ import AlertsManagement from '@/components/admin/AlertsManagement';
 import SubscriptionManagement from '@/components/admin/SubscriptionManagement';
 import PaymentSettings from '@/components/admin/PaymentSettings';
 import NotificationSettings from '@/components/admin/NotificationSettings';
+import SimpleMonitoringGuide from '@/components/admin/SimpleMonitoringGuide';
+import AlertTestModal from '@/components/admin/AlertTestModal';
 import ThemeToggle from '@/components/ThemeToggle';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('users');
   const [isAdmin, setIsAdmin] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -84,6 +87,7 @@ const Admin = () => {
     { id: 'subscriptions', label: 'Assinaturas', icon: CreditCard },
     { id: 'payments', label: 'Pagamentos', icon: Settings },
     { id: 'notifications', label: 'Notificações', icon: Mail },
+    { id: 'scripts', label: 'Scripts', icon: Code },
   ];
 
   const renderTabContent = () => {
@@ -100,6 +104,8 @@ const Admin = () => {
         return <PaymentSettings />;
       case 'notifications':
         return <NotificationSettings />;
+      case 'scripts':
+        return <SimpleMonitoringGuide />;
       default:
         return null;
     }
@@ -108,7 +114,7 @@ const Admin = () => {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header com toggle de tema */}
+        {/* Header com toggle de tema e botão de teste */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
@@ -124,7 +130,17 @@ const Admin = () => {
               <p className="text-muted-foreground">Gerencie usuários, servidores e configurações do sistema</p>
             </div>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsTestModalOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <TestTube className="h-4 w-4" />
+              Testar Alertas
+            </Button>
+            <ThemeToggle />
+          </div>
         </div>
 
         {/* Tabs */}
@@ -154,6 +170,11 @@ const Admin = () => {
           {renderTabContent()}
         </div>
       </div>
+
+      <AlertTestModal 
+        isOpen={isTestModalOpen} 
+        onClose={() => setIsTestModalOpen(false)} 
+      />
     </div>
   );
 };

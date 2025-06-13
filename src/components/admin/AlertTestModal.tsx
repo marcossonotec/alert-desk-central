@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { TestTube } from 'lucide-react';
@@ -35,7 +34,9 @@ const AlertTestModal: React.FC<AlertTestModalProps> = ({ isOpen, onClose }) => {
     setIsLoading(true);
     
     try {
-      // Simular envio de alerta de teste
+      console.log('Enviando teste de alerta:', testData);
+      
+      // Simular envio de alerta de teste usando a função send-alerts
       const { data, error } = await supabase.functions.invoke('send-alerts', {
         body: {
           alerta_id: 'test-alert-' + Date.now(),
@@ -52,7 +53,12 @@ const AlertTestModal: React.FC<AlertTestModalProps> = ({ isOpen, onClose }) => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro no teste de alerta:', error);
+        throw new Error(error.message || 'Erro desconhecido no teste de alerta');
+      }
+
+      console.log('Resposta do teste:', data);
 
       toast({
         title: "Teste de alerta enviado!",

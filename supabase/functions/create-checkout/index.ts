@@ -34,19 +34,24 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log('Criando checkout para:', { planeName, preco, currency, userId: user.id });
 
-    // Buscar configurações de pagamento ativas (qualquer usuário com configuração ativa)
-    const { data: paymentConfig, error: configError } = await supabase
+    // Buscar configurações de pagamento ativas
+    const { data: paymentConfigs, error: configError } = await supabase
       .from('payment_settings')
       .select('*')
       .eq('is_active', true)
-      .limit(1)
-      .single();
+      .limit(1);
 
-    if (configError || !paymentConfig) {
+    if (configError) {
       console.error('Erro ao buscar configuração de pagamento:', configError);
+      throw new Error('Erro interno: não foi possível buscar configurações de pagamento.');
+    }
+
+    if (!paymentConfigs || paymentConfigs.length === 0) {
+      console.log('Nenhuma configuração de pagamento ativa encontrada');
       throw new Error('Gateway de pagamento não configurado. Entre em contato com o suporte.');
     }
 
+    const paymentConfig = paymentConfigs[0];
     console.log('Configuração de pagamento encontrada:', {
       gateway: paymentConfig.gateway_type,
       mode: paymentConfig.mode
@@ -109,8 +114,9 @@ async function createMercadoPagoCheckout(params: {
 }) {
   const { planeName, preco, currency, userEmail, userId, accessToken, isTest } = params;
   
+  // Corrigir a URL do Mercado Pago para sandbox
   const baseUrl = isTest 
-    ? 'https://api.mercadopago.com/sandbox'
+    ? 'https://api.mercadopago.com'  // Usar a mesma URL para test e produção
     : 'https://api.mercadopago.com';
 
   const preferenceData = {
@@ -155,7 +161,15 @@ async function createMercadoPagoCheckout(params: {
   if (!response.ok) {
     const errorData = await response.text();
     console.error('Erro MP:', response.status, errorData);
-    throw new Error(`Erro do Mercado Pago: ${response.status}`);
+    
+    // Dar feedback mais específico sobre o erro
+    if (response.status === 401) {
+      throw new Error('Credenciais do Mercado Pago inválidas. Verifique o Access Token.');
+    } else if (response.status === 400) {
+      throw new Error('Dados inválidos para criação do checkout. Verifique as configurações.');
+    } else {
+      throw new Error(`Erro do Mercado Pago: ${response.status}. Verifique as configurações de pagamento.`);
+    }
   }
 
   const preference = await response.json();
