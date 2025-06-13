@@ -1,6 +1,6 @@
 
 import { AlertData, UserProfile } from "./types.ts";
-import { getTipoAlertaName } from "./utils.ts";
+import { replaceTemplateVariables, getTipoAlertaName } from "./template-utils.ts";
 
 export async function sendWhatsAppNotification(
   alerta: AlertData,
@@ -34,17 +34,31 @@ export async function sendWhatsAppNotification(
     const dataHora = new Date().toLocaleString('pt-BR');
     const ipServidor = alerta.servidores?.ip || 'N/A';
     
-    // Buscar template de WhatsApp personalizado ou usar padrão
-    let whatsappMessage = evolutionInstance.message_template || `🚨 *${isTestMode ? 'TESTE - ' : ''}ALERTA: ${getTipoAlertaName(alerta.tipo_alerta)}*
+    // Template padrão se não houver personalizado
+    const defaultTemplate = `🚨 *${isTestMode ? 'TESTE - ' : ''}ALERTA: {{tipo_alerta}}*
 
-📊 *${tipoRecurso}:* ${recursoNome}
-📍 *IP:* ${ipServidor}
-⚠️ *Problema:* ${getTipoAlertaName(alerta.tipo_alerta)} em ${valor_atual}% (limite: ${limite}%)
+📊 *${tipoRecurso}:* {{servidor_nome}}
+📍 *IP:* {{ip_servidor}}
+⚠️ *Problema:* {{tipo_alerta}} em {{valor_atual}}% (limite: {{limite}}%)
 
-🕒 *Data/Hora:* ${dataHora}
+🕒 *Data/Hora:* {{data_hora}}
 
 ${isTestMode ? '⚠️ *Este é um teste do sistema de alertas!*\n\n' : ''}_Mensagem automática do DeskTools_`;
 
+    // Usar template personalizado ou padrão
+    const template = evolutionInstance.message_template || defaultTemplate;
+    
+    // Substituir variáveis no template
+    const whatsappMessage = replaceTemplateVariables(template, {
+      tipo_alerta: getTipoAlertaName(alerta.tipo_alerta),
+      servidor_nome: recursoNome,
+      ip_servidor: ipServidor,
+      valor_atual: valor_atual,
+      limite: limite,
+      data_hora: dataHora
+    });
+
+    console.log('Mensagem formatada:', whatsappMessage);
     console.log('Enviando WhatsApp para:', profile.whatsapp);
     console.log('URL da API:', `${evolutionInstance.api_url}/message/sendText/${evolutionInstance.instance_name}`);
 

@@ -230,21 +230,38 @@ async function checkAndTriggerAlerts(supabase: any, servidor_id: string, metrics
       if (shouldAlert) {
         console.log(`🚨 ALERTA ACIONADO: ${alerta.tipo_alerta} - ${metricValue.toFixed(1)}% > ${alerta.limite_valor}%`);
         
-        // Registrar notificação
-        const { error: notificationError } = await supabase
-          .from('notificacoes')
-          .insert({
-            alerta_id: alerta.id,
-            servidor_id: servidor_id,
-            canal: alerta.canal_notificacao[0] || 'email',
-            destinatario: 'sistema',
-            mensagem: `Alerta de ${alerta.tipo_alerta}: ${metricValue.toFixed(1)}% (limite: ${alerta.limite_valor}%)`,
-            status: 'enviado',
-            data_envio: new Date().toISOString()
+        try {
+          // Chamar função send-alerts em vez de apenas registrar notificação
+          const { data: alertResult, error: alertError } = await supabase.functions.invoke('send-alerts', {
+            body: {
+              alerta_id: alerta.id,
+              servidor_id: servidor_id,
+              tipo_alerta: alerta.tipo_alerta,
+              valor_atual: metricValue,
+              limite: alerta.limite_valor
+            }
           });
 
-        if (notificationError) {
-          console.error('Erro ao registrar notificação:', notificationError);
+          if (alertError) {
+            console.error('Erro ao enviar alerta via send-alerts:', alertError);
+            
+            // Fallback: registrar notificação no banco
+            await supabase
+              .from('notificacoes')
+              .insert({
+                alerta_id: alerta.id,
+                servidor_id: servidor_id,
+                canal: alerta.canal_notificacao[0] || 'email',
+                destinatario: 'sistema',
+                mensagem: `Alerta de ${alerta.tipo_alerta}: ${metricValue.toFixed(1)}% (limite: ${alerta.limite_valor}%)`,
+                status: 'erro_envio',
+                data_envio: new Date().toISOString()
+              });
+          } else {
+            console.log(`✅ Alerta enviado com sucesso:`, alertResult);
+          }
+        } catch (alertError) {
+          console.error('Erro ao processar alerta:', alertError);
         }
       }
     }
