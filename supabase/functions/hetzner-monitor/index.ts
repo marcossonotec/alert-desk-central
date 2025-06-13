@@ -18,6 +18,8 @@ interface HetznerServerMetrics {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log('=== HETZNER MONITOR INICIADO ===', new Date().toISOString());
+  
   // Lidar com requisições CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -32,7 +34,9 @@ const handler = async (req: Request): Promise<Response> => {
       // Receber métricas do webhook
       const { servidor_id, metrics } = await req.json();
       
-      console.log('Recebendo métricas do servidor:', servidor_id);
+      console.log('=== WEBHOOK RECEBIDO ===');
+      console.log('Servidor ID:', servidor_id);
+      console.log('Métricas:', metrics);
       
       // Salvar métricas no banco de dados
       const { error: metricsError } = await supabase
@@ -49,14 +53,17 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
       if (metricsError) {
+        console.error('❌ Erro ao salvar métricas:', metricsError);
         throw metricsError;
       }
+
+      console.log('✅ Métricas salvas com sucesso');
 
       // Verificar alertas configurados
       await checkAndTriggerAlerts(supabase, servidor_id, metrics);
 
       return new Response(
-        JSON.stringify({ success: true, message: 'Métricas salvas com sucesso' }),
+        JSON.stringify({ success: true, message: 'Métricas salvas e alertas verificados' }),
         { 
           status: 200, 
           headers: { 'Content-Type': 'application/json', ...corsHeaders } 
@@ -65,6 +72,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (req.method === 'GET') {
+      console.log('=== COLETA AUTOMÁTICA INICIADA ===');
+      
       // Coletar métricas de todos os servidores
       const { data: servidores, error } = await supabase
         .from('servidores')
@@ -72,15 +81,26 @@ const handler = async (req: Request): Promise<Response> => {
         .eq('status', 'ativo');
 
       if (error) {
+        console.error('❌ Erro ao buscar servidores:', error);
         throw error;
       }
+
+      console.log(`📊 Coletando métricas de ${servidores?.length || 0} servidores`);
 
       const results = [];
       
       for (const servidor of servidores || []) {
         try {
+          console.log(`🔄 Processando servidor: ${servidor.nome} (${servidor.id})`);
+          
           // Gerar métricas simuladas (em produção, aqui seria feita a coleta real)
           const metrics = await generateSimulatedMetrics(servidor);
+          
+          console.log(`📈 Métricas geradas para ${servidor.nome}:`, {
+            cpu: `${metrics.cpu_usage.toFixed(1)}%`,
+            memoria: `${metrics.memory_usage.toFixed(1)}%`,
+            disco: `${metrics.disk_usage.toFixed(1)}%`
+          });
           
           // Salvar métricas
           const { error: metricsError } = await supabase
@@ -97,23 +117,24 @@ const handler = async (req: Request): Promise<Response> => {
             });
 
           if (metricsError) {
-            console.error('Erro ao salvar métricas:', metricsError);
+            console.error(`❌ Erro ao salvar métricas do servidor ${servidor.nome}:`, metricsError);
           } else {
-            console.log(`Métricas salvas para servidor ${servidor.nome}`);
+            console.log(`✅ Métricas salvas para servidor ${servidor.nome}`);
           }
 
           // Verificar alertas
-          await checkAndTriggerAlerts(supabase, servidor.id, metrics);
+          const alertsTriggered = await checkAndTriggerAlerts(supabase, servidor.id, metrics);
           
           results.push({
             servidor_id: servidor.id,
             nome: servidor.nome,
             status: 'coletado',
-            metrics
+            metrics,
+            alerts_triggered: alertsTriggered
           });
 
         } catch (error) {
-          console.error(`Erro ao coletar métricas do servidor ${servidor.nome}:`, error);
+          console.error(`❌ Erro ao processar servidor ${servidor.nome}:`, error);
           results.push({
             servidor_id: servidor.id,
             nome: servidor.nome,
@@ -123,8 +144,16 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
 
+      console.log('=== COLETA AUTOMÁTICA FINALIZADA ===');
+      console.log(`✅ Processados ${results.length} servidores`);
+
       return new Response(
-        JSON.stringify({ success: true, results, total_servers: servidores?.length || 0 }),
+        JSON.stringify({ 
+          success: true, 
+          results, 
+          total_servers: servidores?.length || 0,
+          timestamp: new Date().toISOString()
+        }),
         { 
           status: 200, 
           headers: { 'Content-Type': 'application/json', ...corsHeaders } 
@@ -141,9 +170,12 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error: any) {
-    console.error('Erro na função hetzner-monitor:', error);
+    console.error('❌ ERRO CRÍTICO na função hetzner-monitor:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        timestamp: new Date().toISOString()
+      }),
       { 
         status: 500, 
         headers: { 'Content-Type': 'application/json', ...corsHeaders } 
@@ -181,8 +213,6 @@ async function generateSimulatedMetrics(servidor: any): Promise<HetznerServerMet
   const uptimeMinutes = Math.floor(Math.random() * 60);
   const uptime = `${uptimeDays}d ${uptimeHours}h ${uptimeMinutes}m`;
 
-  console.log(`Métricas geradas para ${servidor.nome}: CPU=${cpu_usage.toFixed(1)}%, Mem=${memory_usage.toFixed(1)}%, Disk=${disk_usage.toFixed(1)}%`);
-
   return {
     cpu_usage: Number(cpu_usage.toFixed(2)),
     memory_usage: Number(memory_usage.toFixed(2)),
@@ -194,7 +224,9 @@ async function generateSimulatedMetrics(servidor: any): Promise<HetznerServerMet
   };
 }
 
-async function checkAndTriggerAlerts(supabase: any, servidor_id: string, metrics: any) {
+async function checkAndTriggerAlerts(supabase: any, servidor_id: string, metrics: any): Promise<number> {
+  console.log('🔍 Verificando alertas para servidor:', servidor_id);
+  
   try {
     // Buscar alertas configurados para este servidor
     const { data: alertas, error } = await supabase
@@ -204,11 +236,20 @@ async function checkAndTriggerAlerts(supabase: any, servidor_id: string, metrics
       .eq('ativo', true);
 
     if (error) {
-      console.error('Erro ao buscar alertas:', error);
-      return;
+      console.error('❌ Erro ao buscar alertas:', error);
+      return 0;
     }
 
-    for (const alerta of alertas || []) {
+    if (!alertas || alertas.length === 0) {
+      console.log('ℹ️ Nenhum alerta configurado para este servidor');
+      return 0;
+    }
+
+    console.log(`🎯 Encontrados ${alertas.length} alertas configurados`);
+
+    let alertsTriggered = 0;
+
+    for (const alerta of alertas) {
       let shouldAlert = false;
       let metricValue = 0;
 
@@ -227,11 +268,15 @@ async function checkAndTriggerAlerts(supabase: any, servidor_id: string, metrics
           break;
       }
 
+      console.log(`📊 Verificando alerta ${alerta.tipo_alerta}: ${metricValue.toFixed(1)}% (limite: ${alerta.limite_valor}%)`);
+
       if (shouldAlert) {
         console.log(`🚨 ALERTA ACIONADO: ${alerta.tipo_alerta} - ${metricValue.toFixed(1)}% > ${alerta.limite_valor}%`);
         
         try {
-          // Chamar função send-alerts em vez de apenas registrar notificação
+          // Chamar função send-alerts
+          console.log('📤 Enviando alerta via send-alerts...');
+          
           const { data: alertResult, error: alertError } = await supabase.functions.invoke('send-alerts', {
             body: {
               alerta_id: alerta.id,
@@ -243,30 +288,51 @@ async function checkAndTriggerAlerts(supabase: any, servidor_id: string, metrics
           });
 
           if (alertError) {
-            console.error('Erro ao enviar alerta via send-alerts:', alertError);
+            console.error('❌ Erro ao enviar alerta via send-alerts:', alertError);
             
-            // Fallback: registrar notificação no banco
+            // Registrar falha de notificação no banco
             await supabase
               .from('notificacoes')
               .insert({
                 alerta_id: alerta.id,
                 servidor_id: servidor_id,
-                canal: alerta.canal_notificacao[0] || 'email',
-                destinatario: 'sistema',
-                mensagem: `Alerta de ${alerta.tipo_alerta}: ${metricValue.toFixed(1)}% (limite: ${alerta.limite_valor}%)`,
+                canal: 'sistema',
+                destinatario: 'auto-monitor',
+                mensagem: `Falha ao enviar alerta: ${alerta.tipo_alerta} - ${metricValue.toFixed(1)}% (limite: ${alerta.limite_valor}%)`,
                 status: 'erro_envio',
                 data_envio: new Date().toISOString()
               });
           } else {
             console.log(`✅ Alerta enviado com sucesso:`, alertResult);
+            alertsTriggered++;
           }
         } catch (alertError) {
-          console.error('Erro ao processar alerta:', alertError);
+          console.error('❌ Erro crítico ao processar alerta:', alertError);
+          
+          // Registrar erro crítico
+          await supabase
+            .from('notificacoes')
+            .insert({
+              alerta_id: alerta.id,
+              servidor_id: servidor_id,
+              canal: 'sistema',
+              destinatario: 'auto-monitor',
+              mensagem: `Erro crítico no envio: ${alertError.message}`,
+              status: 'erro_critico',
+              data_envio: new Date().toISOString()
+            });
         }
+      } else {
+        console.log(`✅ Alerta ${alerta.tipo_alerta} dentro do limite normal`);
       }
     }
+
+    console.log(`📊 Resumo: ${alertsTriggered} de ${alertas.length} alertas foram acionados`);
+    return alertsTriggered;
+    
   } catch (error) {
-    console.error('Erro ao verificar alertas:', error);
+    console.error('❌ Erro crítico ao verificar alertas:', error);
+    return 0;
   }
 }
 

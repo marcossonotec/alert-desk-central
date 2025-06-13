@@ -10,24 +10,36 @@ export async function sendWhatsAppNotification(
   supabase: any,
   isTestMode: boolean = false
 ): Promise<{ sent: boolean; error: string | null }> {
+  console.log('=== TENTANDO ENVIAR WHATSAPP ===');
+  
   try {
-    console.log('=== TENTANDO ENVIAR WHATSAPP ===');
-    console.log('Para:', profile.whatsapp);
+    console.log('📱 Destinatário:', profile.whatsapp);
+    console.log('🧪 Modo teste:', isTestMode);
     
     // Buscar instância Evolution API do usuário
-    const { data: evolutionInstance } = await supabase
+    const { data: evolutionInstance, error: evolutionError } = await supabase
       .from('evolution_instances')
       .select('*')
       .eq('usuario_id', alerta.usuario_id)
       .eq('status', 'connected')
-      .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (!evolutionInstance) {
-      throw new Error('Nenhuma instância Evolution conectada encontrada para o usuário');
+    if (evolutionError) {
+      console.error('❌ Erro ao buscar instância Evolution:', evolutionError);
+      throw new Error(`Erro ao buscar instância Evolution: ${evolutionError.message}`);
     }
 
-    console.log('Instância Evolution encontrada:', evolutionInstance.instance_name);
+    if (!evolutionInstance) {
+      const error = 'Nenhuma instância Evolution conectada encontrada para o usuário';
+      console.error('❌', error);
+      throw new Error(error);
+    }
+
+    console.log('✅ Instância Evolution encontrada:', {
+      instance_name: evolutionInstance.instance_name,
+      status: evolutionInstance.status,
+      api_url: evolutionInstance.api_url
+    });
     
     const recursoNome = alerta.servidores?.nome || alerta.aplicacoes?.nome || 'Recurso desconhecido';
     const tipoRecurso = alerta.servidor_id ? 'Servidor' : 'Aplicação';
@@ -47,6 +59,7 @@ ${isTestMode ? '⚠️ *Este é um teste do sistema de alertas!*\n\n' : ''}_Mens
 
     // Usar template personalizado ou padrão
     const template = evolutionInstance.message_template || defaultTemplate;
+    console.log('📝 Template que será usado:', template.substring(0, 100) + '...');
     
     // Substituir variáveis no template
     const whatsappMessage = replaceTemplateVariables(template, {
@@ -58,31 +71,39 @@ ${isTestMode ? '⚠️ *Este é um teste do sistema de alertas!*\n\n' : ''}_Mens
       data_hora: dataHora
     });
 
-    console.log('Mensagem formatada:', whatsappMessage);
-    console.log('Enviando WhatsApp para:', profile.whatsapp);
-    console.log('URL da API:', `${evolutionInstance.api_url}/message/sendText/${evolutionInstance.instance_name}`);
+    console.log('📱 Mensagem formatada:', whatsappMessage);
+    
+    // Formatar número do WhatsApp (remover caracteres não numéricos)
+    const whatsappNumber = profile.whatsapp.replace(/\D/g, '');
+    console.log('📞 Número formatado:', whatsappNumber);
+    
+    const apiUrl = `${evolutionInstance.api_url}/message/sendText/${evolutionInstance.instance_name}`;
+    console.log('🔗 URL da API:', apiUrl);
 
     // Enviar WhatsApp via Evolution API
-    const whatsappResponse = await fetch(`${evolutionInstance.api_url}/message/sendText/${evolutionInstance.instance_name}`, {
+    const whatsappResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'apikey': evolutionInstance.api_key
       },
       body: JSON.stringify({
-        number: profile.whatsapp.replace(/\D/g, ''),
+        number: whatsappNumber,
         text: whatsappMessage
       })
     });
 
     const whatsappResult = await whatsappResponse.text();
-    console.log('Resposta da Evolution API:', whatsappResult);
+    console.log('📡 Status da resposta:', whatsappResponse.status);
+    console.log('📄 Resposta da Evolution API:', whatsappResult);
 
     if (!whatsappResponse.ok) {
-      throw new Error(`Erro na resposta da Evolution API: ${whatsappResponse.status} - ${whatsappResult}`);
+      const error = `Erro na resposta da Evolution API: ${whatsappResponse.status} - ${whatsappResult}`;
+      console.error('❌', error);
+      throw new Error(error);
     }
 
-    console.log('WhatsApp enviado com sucesso para:', profile.whatsapp);
+    console.log('✅ WhatsApp enviado com sucesso para:', profile.whatsapp);
     
     // Registrar notificação WhatsApp (somente se não for teste)
     if (!isTestMode) {
@@ -92,18 +113,45 @@ ${isTestMode ? '⚠️ *Este é um teste do sistema de alertas!*\n\n' : ''}_Mens
         canal: 'whatsapp',
         destinatario: profile.whatsapp,
         mensagem: whatsappMessage,
-        status: 'enviado'
+        status: 'enviado',
+        data_envio: new Date().toISOString()
       };
 
-      await supabase
+      const { error: notificationError } = await supabase
         .from('notificacoes')
         .insert(whatsappNotificationData);
+
+      if (notificationError) {
+        console.error('⚠️ Erro ao registrar notificação WhatsApp (mensagem foi enviada):', notificationError);
+      } else {
+        console.log('✅ Notificação WhatsApp registrada com sucesso');
+      }
     }
 
     return { sent: true, error: null };
 
   } catch (error: any) {
-    console.error('Erro ao enviar WhatsApp:', error);
+    console.error('❌ Erro ao enviar WhatsApp:', error);
+    
+    // Tentar registrar o erro no banco
+    if (!isTestMode) {
+      try {
+        await supabase
+          .from('notificacoes')
+          .insert({
+            alerta_id: alerta.id,
+            servidor_id: alerta.servidor_id || null,
+            canal: 'whatsapp',
+            destinatario: profile.whatsapp,
+            mensagem: `Erro ao enviar WhatsApp: ${error.message}`,
+            status: 'erro_envio',
+            data_envio: new Date().toISOString()
+          });
+      } catch (logError) {
+        console.error('❌ Erro ao registrar falha de WhatsApp:', logError);
+      }
+    }
+    
     return { sent: false, error: error.message };
   }
 }

@@ -11,17 +11,21 @@ export async function sendEmailNotification(
   supabase: any,
   isTestMode: boolean = false
 ): Promise<{ sent: boolean; error: string | null }> {
+  console.log('=== TENTANDO ENVIAR EMAIL VIA RESEND ===');
+  
   try {
-    console.log('=== TENTANDO ENVIAR EMAIL VIA RESEND ===');
-    
     const notificationEmail = profile.email_notificacoes || profile.email;
-    console.log('Para:', notificationEmail);
+    console.log('📧 Destinatário:', notificationEmail);
+    console.log('🧪 Modo teste:', isTestMode);
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
-      throw new Error('RESEND_API_KEY não configurado');
+      const error = 'RESEND_API_KEY não configurado nas variáveis de ambiente';
+      console.error('❌', error);
+      throw new Error(error);
     }
 
+    console.log('✅ RESEND_API_KEY encontrado');
     const resend = new Resend(resendApiKey);
     
     const recursoNome = alerta.servidores?.nome || alerta.aplicacoes?.nome || 'Recurso desconhecido';
@@ -31,18 +35,25 @@ export async function sendEmailNotification(
     
     const emailSubject = `🚨 ${isTestMode ? 'TESTE - ' : ''}ALERTA: ${getTipoAlertaName(alerta.tipo_alerta)} - ${recursoNome}`;
     
+    console.log('📧 Assunto do email:', emailSubject);
+    
     // Buscar template personalizado de email
-    const { data: emailTemplate } = await supabase
+    const { data: emailTemplate, error: templateError } = await supabase
       .from('email_templates')
       .select('*')
       .eq('usuario_id', alerta.usuario_id)
       .eq('template_type', 'alert')
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
+
+    if (templateError) {
+      console.log('⚠️ Erro ao buscar template personalizado (usando padrão):', templateError);
+    }
 
     let emailContent;
     
     if (emailTemplate) {
+      console.log('✅ Usando template personalizado de email');
       // Usar template personalizado
       emailContent = replaceTemplateVariables(emailTemplate.html_content, {
         tipo_alerta: getTipoAlertaName(alerta.tipo_alerta),
@@ -53,6 +64,7 @@ export async function sendEmailNotification(
         data_hora: dataHora
       });
     } else {
+      console.log('📝 Usando template padrão de email');
       // Template padrão
       emailContent = `
         <h1>${isTestMode ? 'TESTE - ' : ''}Alerta de Monitoramento</h1>
@@ -72,6 +84,8 @@ export async function sendEmailNotification(
       `;
     }
 
+    console.log('📤 Enviando email via Resend...');
+    
     const emailResult = await resend.emails.send({
       from: 'DeskTools <noreply@tools.flowserv.com.br>',
       to: [notificationEmail],
@@ -79,7 +93,7 @@ export async function sendEmailNotification(
       html: emailContent,
     });
 
-    console.log('Email enviado com sucesso via Resend:', emailResult);
+    console.log('✅ Email enviado com sucesso via Resend:', emailResult);
 
     // Registrar notificação de email no banco (somente se não for teste)
     if (!isTestMode) {
@@ -89,7 +103,8 @@ export async function sendEmailNotification(
         canal: 'email',
         destinatario: notificationEmail,
         mensagem: emailContent,
-        status: 'enviado'
+        status: 'enviado',
+        data_envio: new Date().toISOString()
       };
 
       const { error: notificationError } = await supabase
@@ -97,16 +112,36 @@ export async function sendEmailNotification(
         .insert(emailNotificationData);
 
       if (notificationError) {
-        console.error('Erro ao registrar notificação de email:', notificationError);
+        console.error('⚠️ Erro ao registrar notificação de email (email foi enviado):', notificationError);
       } else {
-        console.log('Notificação de email registrada com sucesso');
+        console.log('✅ Notificação de email registrada com sucesso');
       }
     }
 
     return { sent: true, error: null };
 
   } catch (error: any) {
-    console.error('Erro ao enviar email via Resend:', error);
+    console.error('❌ Erro ao enviar email via Resend:', error);
+    
+    // Tentar registrar o erro no banco
+    if (!isTestMode) {
+      try {
+        await supabase
+          .from('notificacoes')
+          .insert({
+            alerta_id: alerta.id,
+            servidor_id: alerta.servidor_id || null,
+            canal: 'email',
+            destinatario: profile.email_notificacoes || profile.email,
+            mensagem: `Erro ao enviar email: ${error.message}`,
+            status: 'erro_envio',
+            data_envio: new Date().toISOString()
+          });
+      } catch (logError) {
+        console.error('❌ Erro ao registrar falha de email:', logError);
+      }
+    }
+    
     return { sent: false, error: error.message };
   }
 }
