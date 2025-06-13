@@ -67,16 +67,8 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 async function handleTestMode(supabase: any, requestBody: any) {
-  console.log('Executando em modo de teste');
+  console.log('=== INICIANDO MODO DE TESTE ===');
   
-  // Obter usuário atual da requisição
-  const authHeader = requestBody.headers?.authorization || 
-                    globalThis.request?.headers?.get('authorization');
-  
-  if (!authHeader) {
-    console.log('Tentando obter usuário do contexto...');
-  }
-
   // Para modo de teste, buscar o primeiro usuário admin ou usar dados padrão
   const { data: users } = await supabase
     .from('profiles')
@@ -121,11 +113,16 @@ async function handleTestMode(supabase: any, requestBody: any) {
   const valor_atual = requestBody.valor_atual || 85;
   const limite = requestBody.limite || 80;
 
+  console.log('Dados do teste:', { valor_atual, limite, tipo_alerta: requestBody.tipo_alerta });
+
   // Processar como alerta normal, mas com dados de teste
-  return await processAlert(supabase, alertaFicticio, valor_atual, limite, profile);
+  return await processAlert(supabase, alertaFicticio, valor_atual, limite, profile, true);
 }
 
-async function processAlert(supabase: any, alerta: any, valor_atual: any, limite: any, testProfile: any = null) {
+async function processAlert(supabase: any, alerta: any, valor_atual: any, limite: any, testProfile: any = null, isTestMode: boolean = false) {
+  console.log('=== PROCESSANDO ALERTA ===');
+  console.log('Modo teste:', isTestMode);
+  
   let profile = testProfile;
   
   if (!profile) {
@@ -142,18 +139,8 @@ async function processAlert(supabase: any, alerta: any, valor_atual: any, limite
     profile = profileData;
   }
 
-  // Buscar template de email personalizado
-  const { data: emailTemplate } = await supabase
-    .from('email_templates')
-    .select('*')
-    .eq('usuario_id', alerta.usuario_id)
-    .eq('template_type', 'alert')
-    .eq('is_active', true)
-    .single();
-
   // Determinar qual email usar para notificações
   const notificationEmail = profile.email_notificacoes || profile.email;
-  
   console.log('Email para notificação:', notificationEmail);
 
   // Preparar dados para as mensagens
@@ -162,20 +149,6 @@ async function processAlert(supabase: any, alerta: any, valor_atual: any, limite
   const dataHora = new Date().toLocaleString('pt-BR');
   const ipServidor = alerta.servidores?.ip || 'N/A';
   
-  // Função para substituir variáveis no template
-  const replaceVariables = (template: string) => {
-    return template
-      .replace(/\{\{nome\}\}/g, profile.nome_completo || 'Usuário')
-      .replace(/\{\{empresa\}\}/g, profile.empresa || 'Sua empresa')
-      .replace(/\{\{servidor_nome\}\}/g, recursoNome)
-      .replace(/\{\{tipo_alerta\}\}/g, getTipoAlertaName(alerta.tipo_alerta))
-      .replace(/\{\{valor_atual\}\}/g, valor_atual?.toString() || 'N/A')
-      .replace(/\{\{limite\}\}/g, limite?.toString() || 'N/A')
-      .replace(/\{\{data_hora\}\}/g, dataHora)
-      .replace(/\{\{ip_servidor\}\}/g, ipServidor)
-      .replace(/\{\{status\}\}/g, getStatusFromTipoAlerta(alerta.tipo_alerta));
-  };
-
   function getTipoAlertaName(tipo: string) {
     const tipos = {
       'cpu_usage': 'Alto uso de CPU',
@@ -197,59 +170,57 @@ async function processAlert(supabase: any, alerta: any, valor_atual: any, limite
   }
 
   // Preparar mensagem de email
-  let emailContent = '';
-  let emailSubject = '';
+  const emailSubject = `🚨 ${isTestMode ? 'TESTE - ' : ''}ALERTA: ${getTipoAlertaName(alerta.tipo_alerta)} - ${recursoNome}`;
+  const emailContent = `
+    <h1>${isTestMode ? 'TESTE - ' : ''}Alerta de Monitoramento</h1>
+    <p><strong>Olá ${profile.nome_completo || 'Usuário'},</strong></p>
+    ${isTestMode ? '<p style="color: #ff6b00; font-weight: bold;">⚠️ Este é um email de teste do sistema de alertas!</p>' : ''}
+    <p>Foi detectado um alerta no seu ${tipoRecurso.toLowerCase()}: <strong>${recursoNome}</strong></p>
+    
+    <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;">
+      <h3 style="color: #dc3545; margin-top: 0;">⚠️ ${getTipoAlertaName(alerta.tipo_alerta)}</h3>
+      <p><strong>Valor atual:</strong> ${valor_atual}${alerta.tipo_alerta.includes('time') ? 'ms' : '%'}</p>
+      <p><strong>Limite configurado:</strong> ${limite}${alerta.tipo_alerta.includes('time') ? 'ms' : '%'}</p>
+      ${ipServidor !== 'N/A' ? `<p><strong>IP do servidor:</strong> ${ipServidor}</p>` : ''}
+      <p><strong>Data/Hora:</strong> ${dataHora}</p>
+    </div>
+    
+    <p>Este é um alerta ${isTestMode ? 'de teste ' : ''}automático do sistema de monitoramento DeskTools.</p>
+  `;
 
-  if (emailTemplate) {
-    // Usar template personalizado
-    emailSubject = replaceVariables(emailTemplate.subject);
-    emailContent = replaceVariables(emailTemplate.html_content);
+  console.log('=== TENTANDO ENVIAR EMAIL ===');
+  console.log('Para:', notificationEmail);
+  console.log('Assunto:', emailSubject);
+
+  // Registrar notificação de email no banco (somente se não for teste)
+  if (!isTestMode) {
+    const emailNotificationData = {
+      alerta_id: alerta.id,
+      servidor_id: alerta.servidor_id || null,
+      canal: 'email',
+      destinatario: notificationEmail,
+      mensagem: emailContent,
+      status: 'enviado'
+    };
+
+    const { error: notificationError } = await supabase
+      .from('notificacoes')
+      .insert(emailNotificationData);
+
+    if (notificationError) {
+      console.error('Erro ao registrar notificação de email:', notificationError);
+    } else {
+      console.log('Notificação de email registrada com sucesso');
+    }
   } else {
-    // Usar template padrão
-    emailSubject = `🚨 ALERTA: ${getTipoAlertaName(alerta.tipo_alerta)} - ${recursoNome}`;
-    emailContent = `
-      <h1>Alerta de Monitoramento</h1>
-      <p><strong>Olá ${profile.nome_completo || 'Usuário'},</strong></p>
-      <p>Foi detectado um alerta no seu ${tipoRecurso.toLowerCase()}: <strong>${recursoNome}</strong></p>
-      
-      <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;">
-        <h3 style="color: #dc3545; margin-top: 0;">⚠️ ${getTipoAlertaName(alerta.tipo_alerta)}</h3>
-        <p><strong>Valor atual:</strong> ${valor_atual}${alerta.tipo_alerta.includes('time') ? 'ms' : '%'}</p>
-        <p><strong>Limite configurado:</strong> ${limite}${alerta.tipo_alerta.includes('time') ? 'ms' : '%'}</p>
-        ${ipServidor !== 'N/A' ? `<p><strong>IP do servidor:</strong> ${ipServidor}</p>` : ''}
-        <p><strong>Data/Hora:</strong> ${dataHora}</p>
-      </div>
-      
-      <p>Este é um alerta automático do sistema de monitoramento DeskTools.</p>
-    `;
-  }
-
-  // Registrar notificação de email no banco
-  const emailNotificationData = {
-    servidor_id: alerta.servidor_id || null,
-    canal: 'email',
-    destinatario: notificationEmail,
-    mensagem: emailContent,
-    status: 'enviado'
-  };
-
-  // Só registrar no banco se não for modo de teste
-  if (!alerta.id.toString().startsWith('test-alert-')) {
-    emailNotificationData.alerta_id = alerta.id;
-  }
-
-  const { error: notificationError } = await supabase
-    .from('notificacoes')
-    .insert(emailNotificationData);
-
-  if (notificationError) {
-    console.error('Erro ao registrar notificação de email:', notificationError);
-  } else {
-    console.log('Notificação de email registrada com sucesso');
+    console.log('Modo teste: pulando registro da notificação no banco');
   }
 
   // Se WhatsApp configurado e canais incluem WhatsApp, enviar via WhatsApp
   if (profile.whatsapp && alerta.canal_notificacao?.includes('whatsapp')) {
+    console.log('=== TENTANDO ENVIAR WHATSAPP ===');
+    console.log('Para:', profile.whatsapp);
+    
     // Buscar instância Evolution API do usuário
     const { data: evolutionInstance } = await supabase
       .from('evolution_instances')
@@ -261,22 +232,24 @@ async function processAlert(supabase: any, alerta: any, valor_atual: any, limite
 
     if (evolutionInstance) {
       try {
+        console.log('Instância Evolution encontrada:', evolutionInstance.instance_name);
+        
         // Buscar template de WhatsApp personalizado ou usar padrão
-        let whatsappMessage = evolutionInstance.message_template || `🚨 *ALERTA: {{tipo_alerta}}*
+        let whatsappMessage = evolutionInstance.message_template || `🚨 *${isTestMode ? 'TESTE - ' : ''}ALERTA: ${getTipoAlertaName(alerta.tipo_alerta)}*
 
-📊 *${tipoRecurso}:* {{servidor_nome}}
-📍 *IP:* {{ip_servidor}}
-⚠️ *Problema:* {{tipo_alerta}} em {{valor_atual}}% (limite: {{limite}}%)
+📊 *${tipoRecurso}:* ${recursoNome}
+📍 *IP:* ${ipServidor}
+⚠️ *Problema:* ${getTipoAlertaName(alerta.tipo_alerta)} em ${valor_atual}% (limite: ${limite}%)
 
-🕒 *Data/Hora:* {{data_hora}}
+🕒 *Data/Hora:* ${dataHora}
 
-_Mensagem automática do DeskTools_`;
+${isTestMode ? '⚠️ *Este é um teste do sistema de alertas!*\n\n' : ''}_Mensagem automática do DeskTools_`;
 
-        // Substituir variáveis na mensagem do WhatsApp
-        whatsappMessage = replaceVariables(whatsappMessage);
+        console.log('Enviando WhatsApp para:', profile.whatsapp);
+        console.log('URL da API:', `${evolutionInstance.api_url}/message/sendText/${evolutionInstance.instance_name}`);
 
         // Enviar WhatsApp via Evolution API
-        await fetch(`${evolutionInstance.api_url}/message/sendText/${evolutionInstance.instance_name}`, {
+        const whatsappResponse = await fetch(`${evolutionInstance.api_url}/message/sendText/${evolutionInstance.instance_name}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -288,32 +261,54 @@ _Mensagem automática do DeskTools_`;
           })
         });
 
-        console.log('WhatsApp enviado para:', profile.whatsapp);
+        const whatsappResult = await whatsappResponse.text();
+        console.log('Resposta da Evolution API:', whatsappResult);
 
-        // Registrar notificação WhatsApp
-        const whatsappNotificationData = {
-          ...emailNotificationData,
-          canal: 'whatsapp',
-          destinatario: profile.whatsapp,
-          mensagem: whatsappMessage
-        };
+        if (whatsappResponse.ok) {
+          console.log('WhatsApp enviado com sucesso para:', profile.whatsapp);
+          
+          // Registrar notificação WhatsApp (somente se não for teste)
+          if (!isTestMode) {
+            const whatsappNotificationData = {
+              alerta_id: alerta.id,
+              servidor_id: alerta.servidor_id || null,
+              canal: 'whatsapp',
+              destinatario: profile.whatsapp,
+              mensagem: whatsappMessage,
+              status: 'enviado'
+            };
 
-        await supabase
-          .from('notificacoes')
-          .insert(whatsappNotificationData);
+            await supabase
+              .from('notificacoes')
+              .insert(whatsappNotificationData);
+          }
+        } else {
+          console.error('Erro na resposta da Evolution API:', whatsappResponse.status, whatsappResult);
+        }
 
       } catch (whatsappError) {
         console.error('Erro ao enviar WhatsApp:', whatsappError);
       }
+    } else {
+      console.log('Nenhuma instância Evolution conectada encontrada para o usuário');
     }
+  } else {
+    console.log('WhatsApp não configurado ou não incluído nos canais de notificação');
   }
+
+  console.log('=== FINALIZANDO PROCESSAMENTO ===');
 
   return new Response(
     JSON.stringify({ 
       success: true, 
-      message: 'Alerta enviado com sucesso',
+      message: `Alerta ${isTestMode ? 'de teste ' : ''}enviado com sucesso`,
       notification_email: notificationEmail,
-      test_mode: alerta.id.toString().startsWith('test-alert-')
+      test_mode: isTestMode,
+      whatsapp_configured: !!profile.whatsapp,
+      channels_attempted: {
+        email: true,
+        whatsapp: profile.whatsapp && alerta.canal_notificacao?.includes('whatsapp')
+      }
     }),
     { 
       status: 200, 
