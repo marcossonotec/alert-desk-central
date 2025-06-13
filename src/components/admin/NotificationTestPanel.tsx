@@ -1,29 +1,80 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { TestTube, Mail, MessageSquare, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { TestTube, Mail, MessageSquare, CheckCircle, XCircle, AlertTriangle, User, Settings } from 'lucide-react';
 
 const NotificationTestPanel = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [testResults, setTestResults] = useState<any>(null);
+  const [userConfig, setUserConfig] = useState<any>(null);
   const [testData, setTestData] = useState({
     tipo_alerta: 'cpu_usage',
     valor_atual: 85,
     limite: 80,
     servidor_nome: 'Servidor-Teste',
-    ip_servidor: '192.168.1.100',
-    email_teste: '',
-    whatsapp_teste: ''
+    ip_servidor: '192.168.1.100'
   });
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      loadUserConfig();
+    }
+  }, [user]);
+
+  const loadUserConfig = async () => {
+    if (!user) return;
+
+    try {
+      // Buscar perfil do usuário
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email, email_notificacoes, whatsapp')
+        .eq('id', user.id)
+        .single();
+
+      // Buscar configurações de notificação
+      const { data: notificationSettings } = await supabase
+        .from('notification_settings')
+        .select('email_provider, from_email, is_active')
+        .eq('usuario_id', user.id)
+        .single();
+
+      // Buscar instância Evolution
+      const { data: evolutionInstance } = await supabase
+        .from('evolution_instances')
+        .select('status')
+        .eq('usuario_id', user.id)
+        .eq('status', 'connected')
+        .single();
+
+      setUserConfig({
+        profile,
+        notificationSettings,
+        hasEvolution: !!evolutionInstance
+      });
+    } catch (error) {
+      console.error('Erro ao carregar configurações do usuário:', error);
+    }
+  };
+
+  const getEmailToUse = () => {
+    if (!userConfig?.profile) return 'N/A';
+    return userConfig.profile.email_notificacoes || userConfig.profile.email;
+  };
+
+  const canSendWhatsApp = () => {
+    return userConfig?.profile?.whatsapp && userConfig?.hasEvolution;
+  };
 
   const handleTest = async () => {
     setIsLoading(true);
@@ -31,6 +82,17 @@ const NotificationTestPanel = () => {
     
     try {
       console.log('Enviando teste de alerta:', testData);
+      
+      // Buscar token de sessão para enviar na requisição
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const headers: any = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
       
       // Enviar alerta de teste usando a função send-alerts com modo de teste
       const { data, error } = await supabase.functions.invoke('send-alerts', {
@@ -79,22 +141,6 @@ const NotificationTestPanel = () => {
     }
   };
 
-  const testEmailConnection = async () => {
-    // Implementar teste específico de email
-    toast({
-      title: "Teste de email",
-      description: "Esta funcionalidade será implementada em breve.",
-    });
-  };
-
-  const testWhatsAppConnection = async () => {
-    // Implementar teste específico de WhatsApp
-    toast({
-      title: "Teste de WhatsApp",
-      description: "Esta funcionalidade será implementada em breve.",
-    });
-  };
-
   return (
     <div className="space-y-6">
       <Card className="bg-card border-border">
@@ -105,6 +151,64 @@ const NotificationTestPanel = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Status das configurações do usuário */}
+          {userConfig && (
+            <Card className="bg-muted/50 border-border">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Suas Configurações Atuais
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Email para notificações:</span>
+                      <Badge variant="outline">{getEmailToUse()}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Configuração de email:</span>
+                      <Badge variant={userConfig.notificationSettings?.is_active ? 'default' : 'secondary'}>
+                        {userConfig.notificationSettings?.is_active ? 'Ativa' : 'Inativa'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">WhatsApp configurado:</span>
+                      <Badge variant={userConfig.profile?.whatsapp ? 'default' : 'secondary'}>
+                        {userConfig.profile?.whatsapp ? 'Sim' : 'Não'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Evolution conectada:</span>
+                      <Badge variant={userConfig.hasEvolution ? 'default' : 'secondary'}>
+                        {userConfig.hasEvolution ? 'Sim' : 'Não'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+                {!userConfig.notificationSettings?.is_active && (
+                  <div className="flex items-center gap-2 p-2 bg-yellow-50 dark:bg-yellow-950 rounded">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                    <span className="text-sm text-yellow-800 dark:text-yellow-200">
+                      Configure suas preferências de email na aba "Configurações de Email"
+                    </span>
+                  </div>
+                )}
+                {!canSendWhatsApp() && (
+                  <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-950 rounded">
+                    <Settings className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm text-blue-800 dark:text-blue-200">
+                      Configure WhatsApp e Evolution para receber notificações via WhatsApp
+                    </span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Configurações do teste */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -165,20 +269,16 @@ const NotificationTestPanel = () => {
             </div>
           </div>
 
-          {/* Botões de teste */}
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={handleTest} disabled={isLoading} className="flex-1 min-w-[200px]">
-              {isLoading ? 'Testando...' : 'Testar Notificações'}
-            </Button>
-            <Button variant="outline" onClick={testEmailConnection} disabled={isLoading}>
-              <Mail className="h-4 w-4 mr-2" />
-              Testar Email
-            </Button>
-            <Button variant="outline" onClick={testWhatsAppConnection} disabled={isLoading}>
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Testar WhatsApp
-            </Button>
-          </div>
+          {/* Botão de teste */}
+          <Button 
+            onClick={handleTest} 
+            disabled={isLoading || !user} 
+            className="w-full"
+            size="lg"
+          >
+            {isLoading ? 'Testando...' : 'Testar Notificações'}
+            <TestTube className="h-4 w-4 ml-2" />
+          </Button>
 
           {/* Resultados do teste */}
           {testResults && (
@@ -204,6 +304,11 @@ const NotificationTestPanel = () => {
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Mensagem:</p>
                   <p className="text-sm text-muted-foreground">{testResults.message}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Email enviado para:</p>
+                  <p className="text-sm text-muted-foreground">{testResults.notification_email}</p>
                 </div>
 
                 {testResults.channels_attempted && (
@@ -281,7 +386,7 @@ const NotificationTestPanel = () => {
                   <div className="flex items-center gap-2 p-2 bg-yellow-50 dark:bg-yellow-950 rounded">
                     <AlertTriangle className="h-4 w-4 text-yellow-600" />
                     <span className="text-sm text-yellow-800 dark:text-yellow-200">
-                      Este foi um teste - as notificações foram enviadas mas não registradas no banco
+                      Este foi um teste do sistema - as notificações foram enviadas mas não registradas no banco
                     </span>
                   </div>
                 )}

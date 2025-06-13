@@ -16,12 +16,29 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Extrair token de autorização para identificar o usuário
+    const authHeader = req.headers.get('Authorization');
+    let authUserId: string | undefined;
+    
+    if (authHeader) {
+      try {
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        if (user && !error) {
+          authUserId = user.id;
+          console.log('Usuário autenticado identificado:', user.email);
+        }
+      } catch (error) {
+        console.log('Erro ao identificar usuário:', error);
+      }
+    }
+
     const requestBody: AlertRequest = await req.json();
     console.log('Request body recebido:', requestBody);
 
     // Verificar se é modo de teste
     if (requestBody.test_mode) {
-      const { alerta, profile } = await handleTestMode(supabase, requestBody);
+      const { alerta, profile } = await handleTestMode(supabase, requestBody, authUserId);
       return await processAlert(supabase, alerta, requestBody.valor_atual || 85, requestBody.limite || 80, profile, true);
     }
 
