@@ -36,16 +36,13 @@ const AlertTestModal: React.FC<AlertTestModalProps> = ({ isOpen, onClose }) => {
     try {
       console.log('Enviando teste de alerta:', testData);
       
-      // Simular envio de alerta de teste usando a função send-alerts
+      // Enviar alerta de teste usando a função send-alerts com modo de teste
       const { data, error } = await supabase.functions.invoke('send-alerts', {
         body: {
-          alerta_id: 'test-alert-' + Date.now(),
-          servidor_id: 'test-server-id',
-          aplicacao_id: null,
+          test_mode: true,
           tipo_alerta: testData.tipo_alerta,
           valor_atual: testData.valor_atual,
           limite: testData.limite,
-          test_mode: true,
           test_data: {
             servidor_nome: testData.servidor_nome,
             ip_servidor: testData.ip_servidor
