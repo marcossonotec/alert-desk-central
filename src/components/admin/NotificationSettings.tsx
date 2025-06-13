@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,7 @@ import { Mail, Send, Settings, TestTube, FileText, CheckCircle, XCircle, Info } 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import NotificationTestPanel from './NotificationTestPanel';
 
 const NotificationSettings = () => {
   const [activeTab, setActiveTab] = useState('smtp');
@@ -20,7 +20,7 @@ const NotificationSettings = () => {
   const [testingEmail, setTestingEmail] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [notificationSettings, setNotificationSettings] = useState({
-    email_provider: 'smtp',
+    email_provider: 'resend',
     smtp_host: '',
     smtp_port: 587,
     smtp_username: '',
@@ -266,11 +266,11 @@ const NotificationSettings = () => {
   };
 
   const emailProviders = [
+    { value: 'resend', label: 'Resend (Recomendado)' },
     { value: 'smtp', label: 'SMTP Personalizado' },
     { value: 'sendgrid', label: 'SendGrid' },
     { value: 'google', label: 'Gmail/Google Workspace' },
-    { value: 'amazon_ses', label: 'Amazon SES' },
-    { value: 'resend', label: 'Resend' }
+    { value: 'amazon_ses', label: 'Amazon SES' }
   ];
 
   const templateTypes = [
@@ -284,9 +284,10 @@ const NotificationSettings = () => {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="smtp">Configurações SMTP</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="smtp">Configurações de Email</TabsTrigger>
           <TabsTrigger value="templates">Templates de Email</TabsTrigger>
+          <TabsTrigger value="test">Teste de Notificações</TabsTrigger>
         </TabsList>
 
         <TabsContent value="smtp" className="space-y-6">
@@ -579,6 +580,10 @@ const NotificationSettings = () => {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="test" className="space-y-6">
+          <NotificationTestPanel />
         </TabsContent>
       </Tabs>
     </div>

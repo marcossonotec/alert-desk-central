@@ -7,6 +7,9 @@ verify_jwt = false
 [functions.send-alerts]
 verify_jwt = false
 
+[functions.trigger-alerts]
+verify_jwt = false
+
 [functions.payment-webhook]
 verify_jwt = false
 
