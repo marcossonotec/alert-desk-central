@@ -19,7 +19,9 @@ export async function processAlert(
     valor_atual,
     limite,
     test_mode: isTestMode,
-    canais: alerta.canal_notificacao
+    canais: alerta.canal_notificacao,
+    tem_servidor: !!alerta.servidores,
+    tem_aplicacao: !!alerta.aplicacoes
   });
   
   let profile = testProfile;
@@ -30,18 +32,19 @@ export async function processAlert(
     // Buscar perfil do usuário com email de notificações
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select('nome_completo, email, email_notificacoes, whatsapp, empresa')
+      .select('id, nome_completo, email, email_notificacoes, whatsapp, empresa')
       .eq('id', alerta.usuario_id)
       .single();
 
     if (profileError || !profileData) {
-      const errorMsg = 'Perfil do usuário não encontrado';
+      const errorMsg = `Perfil do usuário não encontrado: ${alerta.usuario_id}`;
       console.error('❌', errorMsg, profileError);
       throw new Error(errorMsg);
     }
     
     profile = profileData;
     console.log('✅ Perfil encontrado:', {
+      id: profile.id,
       email: profile.email,
       email_notificacoes: profile.email_notificacoes,
       whatsapp: profile.whatsapp ? '***configurado***' : 'não configurado'
@@ -61,8 +64,13 @@ export async function processAlert(
   // Enviar email (sempre tenta, a menos que explicitamente desabilitado)
   if (canaisNotificacao.includes('email')) {
     console.log('📧 Enviando notificação por email...');
-    emailResult = await sendEmailNotification(alerta, profile, valor_atual, limite, supabase, isTestMode);
-    console.log('📧 Resultado email:', emailResult);
+    try {
+      emailResult = await sendEmailNotification(alerta, profile, valor_atual, limite, supabase, isTestMode);
+      console.log('📧 Resultado email:', emailResult);
+    } catch (emailError: any) {
+      console.error('📧 Erro crítico no envio de email:', emailError);
+      emailResult = { sent: false, error: emailError.message };
+    }
   } else {
     console.log('📧 Email não está nos canais configurados');
   }
@@ -71,8 +79,13 @@ export async function processAlert(
   if (canaisNotificacao.includes('whatsapp')) {
     if (profile.whatsapp) {
       console.log('📱 Enviando notificação por WhatsApp...');
-      whatsappResult = await sendWhatsAppNotification(alerta, profile, valor_atual, limite, supabase, isTestMode);
-      console.log('📱 Resultado WhatsApp:', whatsappResult);
+      try {
+        whatsappResult = await sendWhatsAppNotification(alerta, profile, valor_atual, limite, supabase, isTestMode);
+        console.log('📱 Resultado WhatsApp:', whatsappResult);
+      } catch (whatsappError: any) {
+        console.error('📱 Erro crítico no envio de WhatsApp:', whatsappError);
+        whatsappResult = { sent: false, error: whatsappError.message };
+      }
     } else {
       console.log('⚠️ WhatsApp solicitado mas não configurado no perfil');
       whatsappResult = { sent: false, error: 'WhatsApp não configurado no perfil do usuário' };
@@ -83,19 +96,22 @@ export async function processAlert(
 
   // Registrar tentativa de notificação (mesmo que falhe)
   if (!isTestMode) {
+    const statusNotificacao = (emailResult.sent || whatsappResult.sent) ? 'enviado' : 'erro_envio';
+    const mensagemDetalhada = `Alerta ${alerta.tipo_alerta}: ${valor_atual}% (limite: ${limite}%) | Email: ${emailResult.sent ? 'OK' : 'FALHA'} | WhatsApp: ${whatsappResult.sent ? 'OK' : 'FALHA'}`;
+    
     const notificationData = {
       alerta_id: alerta.id,
       servidor_id: alerta.servidor_id || null,
       canal: 'sistema',
       destinatario: notificationEmail,
-      mensagem: `Alerta processado: ${alerta.tipo_alerta} - ${valor_atual}% (limite: ${limite}%)`,
-      status: (emailResult.sent || whatsappResult.sent) ? 'enviado' : 'erro_envio',
+      mensagem: mensagemDetalhada,
+      status: statusNotificacao,
       data_envio: new Date().toISOString()
     };
 
     try {
       await supabase.from('notificacoes').insert(notificationData);
-      console.log('✅ Log de notificação registrado');
+      console.log('✅ Log de notificação registrado:', statusNotificacao);
     } catch (logError) {
       console.error('❌ Erro ao registrar log de notificação:', logError);
     }
@@ -139,7 +155,7 @@ export async function processAlert(
       tipo_alerta: alerta.tipo_alerta,
       valor_atual,
       limite,
-      servidor_nome: alerta.servidores?.nome || alerta.aplicacoes?.nome || 'Desconhecido'
+      servidor_nome: alerta.servidores?.nome || alerta.aplicacoes?.nome || 'Recurso desconhecido'
     }
   };
 

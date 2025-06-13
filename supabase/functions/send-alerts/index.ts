@@ -71,44 +71,91 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(errorMsg);
     }
 
-    // Buscar configurações do alerta
-    const { data: alerta, error: alertaError } = await supabase
+    // CORREÇÃO: Buscar alerta primeiro sem relacionamentos
+    console.log('📋 Buscando configurações básicas do alerta...');
+    const { data: alertaBase, error: alertaError } = await supabase
       .from('alertas')
-      .select(`
-        *,
-        servidores(nome, ip),
-        aplicacoes(nome)
-      `)
+      .select('*')
       .eq('id', alerta_id)
       .single();
 
-    if (alertaError || !alerta) {
+    if (alertaError || !alertaBase) {
       const errorMsg = `Alerta não encontrado: ${alerta_id}`;
       console.error('❌', errorMsg, alertaError);
       throw new Error(errorMsg);
     }
 
-    console.log('✅ Alerta encontrado:', {
-      id: alerta.id,
-      tipo: alerta.tipo_alerta,
-      usuario_id: alerta.usuario_id,
-      limite: alerta.limite_valor,
-      canais: alerta.canal_notificacao
+    console.log('✅ Alerta base encontrado:', {
+      id: alertaBase.id,
+      tipo: alertaBase.tipo_alerta,
+      usuario_id: alertaBase.usuario_id,
+      limite: alertaBase.limite_valor,
+      canais: alertaBase.canal_notificacao
     });
 
     // Verificar se o alerta está ativo
-    if (!alerta.ativo) {
+    if (!alertaBase.ativo) {
       const errorMsg = 'Alerta está inativo';
       console.error('⚠️', errorMsg);
       throw new Error(errorMsg);
     }
 
-    return await processAlert(supabase, alerta, valor_atual, limite);
+    // CORREÇÃO: Buscar dados do servidor OU aplicação condicionalmente
+    let servidorData = null;
+    let aplicacaoData = null;
+
+    if (servidor_id) {
+      console.log('🖥️ Buscando dados do servidor...');
+      const { data: servidor, error: servidorError } = await supabase
+        .from('servidores')
+        .select('nome, ip')
+        .eq('id', servidor_id)
+        .single();
+
+      if (servidorError) {
+        console.log('⚠️ Erro ao buscar servidor:', servidorError);
+      } else {
+        servidorData = servidor;
+        console.log('✅ Servidor encontrado:', servidor.nome);
+      }
+    }
+
+    if (aplicacao_id) {
+      console.log('📱 Buscando dados da aplicação...');
+      const { data: aplicacao, error: aplicacaoError } = await supabase
+        .from('aplicacoes')
+        .select('nome')
+        .eq('id', aplicacao_id)
+        .single();
+
+      if (aplicacaoError) {
+        console.log('⚠️ Erro ao buscar aplicação:', aplicacaoError);
+      } else {
+        aplicacaoData = aplicacao;
+        console.log('✅ Aplicação encontrada:', aplicacao.nome);
+      }
+    }
+
+    // Construir objeto alerta completo
+    const alertaCompleto = {
+      ...alertaBase,
+      servidores: servidorData,
+      aplicacoes: aplicacaoData
+    };
+
+    console.log('🎯 Alerta completo preparado para envio:', {
+      id: alertaCompleto.id,
+      servidor: servidorData?.nome || 'N/A',
+      aplicacao: aplicacaoData?.nome || 'N/A'
+    });
+
+    return await processAlert(supabase, alertaCompleto, valor_atual, limite);
 
   } catch (error: any) {
     console.error('❌ ERRO CRÍTICO em send-alerts:', error);
+    console.error('📍 Stack trace:', error.stack);
     
-    // Registrar erro no sistema
+    // Registrar erro no sistema com mais detalhes
     try {
       const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
       await supabase
@@ -118,7 +165,7 @@ const handler = async (req: Request): Promise<Response> => {
           servidor_id: null,
           canal: 'sistema',
           destinatario: 'send-alerts-function',
-          mensagem: `Erro crítico: ${error.message}`,
+          mensagem: `Erro crítico em send-alerts: ${error.message} | Stack: ${error.stack?.substring(0, 500)}`,
           status: 'erro_critico',
           data_envio: new Date().toISOString()
         });
@@ -130,7 +177,8 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         error: error.message,
         timestamp: new Date().toISOString(),
-        success: false
+        success: false,
+        details: error.stack?.substring(0, 200)
       }),
       { 
         status: 500, 
