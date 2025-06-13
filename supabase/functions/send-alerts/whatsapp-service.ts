@@ -22,7 +22,7 @@ export async function sendWhatsAppNotification(
       throw new Error(error);
     }
     
-    // Buscar instância Evolution API do usuário
+    // Buscar instância Evolution API ativa do usuário
     const { data: evolutionInstance, error: evolutionError } = await supabase
       .from('evolution_instances')
       .select('*')
@@ -52,7 +52,7 @@ export async function sendWhatsAppNotification(
     const dataHora = new Date().toLocaleString('pt-BR');
     const ipServidor = alerta.servidores?.ip || 'N/A';
     
-    // Template padrão melhorado se não houver personalizado
+    // Template padrão otimizado para WhatsApp
     const defaultTemplate = `🚨 *${isTestMode ? 'TESTE - ' : ''}ALERTA: {{tipo_alerta}}*
 
 📊 *${tipoRecurso}:* {{servidor_nome}}
@@ -63,7 +63,7 @@ ${ipServidor !== 'N/A' ? '📍 *IP:* {{ip_servidor}}' : ''}
 
 ${isTestMode ? '⚠️ *Este é um teste do sistema de alertas!*\n\n' : ''}_Mensagem automática do DeskTools_`;
 
-    // Usar template personalizado ou padrão
+    // Usar template personalizado se existir ou padrão
     const template = evolutionInstance.message_template || defaultTemplate;
     console.log('📝 Template que será usado:', template.substring(0, 100) + '...');
     
@@ -79,10 +79,9 @@ ${isTestMode ? '⚠️ *Este é um teste do sistema de alertas!*\n\n' : ''}_Mens
 
     console.log('📱 Mensagem formatada:', whatsappMessage);
     
-    // Formatar número do WhatsApp (remover caracteres não numéricos e garantir formato correto)
+    // Formatar número do WhatsApp
     let whatsappNumber = profile.whatsapp.replace(/\D/g, '');
     
-    // Adicionar código do país se não existir
     if (!whatsappNumber.startsWith('55') && whatsappNumber.length <= 11) {
       whatsappNumber = '55' + whatsappNumber;
     }
@@ -119,7 +118,7 @@ ${isTestMode ? '⚠️ *Este é um teste do sistema de alertas!*\n\n' : ''}_Mens
       throw new Error(error);
     }
 
-    // Tentar parsear a resposta para verificar se foi bem-sucedida
+    // Tentar parsear a resposta
     let parsedResult;
     try {
       parsedResult = JSON.parse(whatsappResult);

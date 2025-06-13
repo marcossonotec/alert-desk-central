@@ -46,16 +46,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     let alertasAcionados = 0;
     let errosProcessamento = 0;
+    let sucessoProcessamento = 0;
 
     for (const servidor of servidores || []) {
       console.log(`🔄 Processando servidor: ${servidor.nome} (${servidor.id})`);
       console.log(`👤 Usuário: ${servidor.profiles.email} (${servidor.profiles.nome_completo})`);
       
       try {
-        // Gerar métricas fictícias mais realistas
-        const cpuUsage = Math.random() * 15 + 0.5; // 0.5% a 15%
-        const memoriaUsage = Math.random() * 60 + 25; // 25% a 85%
-        const discoUsage = Math.random() * 50 + 40; // 40% a 90% (mais provável de disparar alertas)
+        // Gerar métricas mais realistas com maior chance de disparar alertas
+        const cpuUsage = Math.random() * 100; // 0% a 100%
+        const memoriaUsage = Math.random() * 100; // 0% a 100%
+        const discoUsage = Math.random() * 100; // 0% a 100%
 
         const metricas = {
           cpu: `${cpuUsage.toFixed(1)}%`,
@@ -87,6 +88,7 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         } else {
           console.log(`✅ Métricas salvas para servidor ${servidor.nome}`);
+          sucessoProcessamento++;
         }
 
         // Verificar alertas para este servidor
@@ -145,7 +147,7 @@ const handler = async (req: Request): Promise<Response> => {
             try {
               console.log('📤 Enviando alerta via send-alerts...');
               
-              // Chamar send-alerts com dados corretos e completos
+              // Usar supabase.functions.invoke para chamar send-alerts
               const { data: sendResult, error: sendError } = await supabase.functions.invoke('send-alerts', {
                 body: {
                   alerta_id: alerta.id,
@@ -153,6 +155,9 @@ const handler = async (req: Request): Promise<Response> => {
                   tipo_alerta: alerta.tipo_alerta,
                   valor_atual: valorAtual,
                   limite: limite
+                },
+                headers: {
+                  'Content-Type': 'application/json'
                 }
               });
 
@@ -160,36 +165,52 @@ const handler = async (req: Request): Promise<Response> => {
                 console.error('❌ Erro ao enviar alerta via send-alerts:', sendError);
                 errosProcessamento++;
                 
-                // Registrar erro de sistema
+                // Registrar erro de sistema com email correto do usuário
+                const emailDestinatario = servidor.profiles.email_notificacoes || servidor.profiles.email;
                 await supabase
                   .from('notificacoes')
                   .insert({
                     alerta_id: alerta.id,
                     servidor_id: servidor.id,
                     canal: 'sistema',
-                    destinatario: servidor.profiles.email_notificacoes || servidor.profiles.email,
-                    mensagem: `Erro ao processar alerta ${alerta.tipo_alerta}: ${sendError.message}`,
+                    destinatario: emailDestinatario,
+                    mensagem: `Erro no envio automático de alerta ${alerta.tipo_alerta}: ${sendError.message}`,
                     status: 'erro_sistema',
                     data_envio: new Date().toISOString()
                   });
               } else {
                 console.log('✅ Alerta enviado com sucesso:', sendResult);
                 alertasServidorAcionados++;
-              }
-            } catch (alertError) {
-              console.error('❌ Erro crítico no envio do alerta:', alertError);
-              errosProcessamento++;
-              
-              // Registrar erro crítico
-              try {
+                
+                // Registrar sucesso com email correto do usuário
+                const emailDestinatario = servidor.profiles.email_notificacoes || servidor.profiles.email;
                 await supabase
                   .from('notificacoes')
                   .insert({
                     alerta_id: alerta.id,
                     servidor_id: servidor.id,
                     canal: 'sistema',
-                    destinatario: servidor.profiles.email_notificacoes || servidor.profiles.email,
-                    mensagem: `Erro crítico no processamento de alerta: ${alertError.message}`,
+                    destinatario: emailDestinatario,
+                    mensagem: `Alerta automático enviado: ${alerta.tipo_alerta} - ${valorAtual}% (limite: ${limite}%)`,
+                    status: 'enviado',
+                    data_envio: new Date().toISOString()
+                  });
+              }
+            } catch (alertError) {
+              console.error('❌ Erro crítico no envio do alerta:', alertError);
+              errosProcessamento++;
+              
+              // Registrar erro crítico com email correto do usuário
+              try {
+                const emailDestinatario = servidor.profiles.email_notificacoes || servidor.profiles.email;
+                await supabase
+                  .from('notificacoes')
+                  .insert({
+                    alerta_id: alerta.id,
+                    servidor_id: servidor.id,
+                    canal: 'sistema',
+                    destinatario: emailDestinatario,
+                    mensagem: `Erro crítico no processamento automático de alerta: ${alertError.message}`,
                     status: 'erro_critico',
                     data_envio: new Date().toISOString()
                   });
@@ -203,7 +224,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         alertasAcionados += alertasServidorAcionados;
-        console.log(`📊 Resumo: ${alertasServidorAcionados} de ${alertas.length} alertas foram acionados`);
+        console.log(`📊 Resumo servidor ${servidor.nome}: ${alertasServidorAcionados} de ${alertas.length} alertas foram acionados`);
 
       } catch (servidorError) {
         console.error(`❌ Erro ao processar servidor ${servidor.nome}:`, servidorError);
@@ -213,8 +234,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('=== COLETA AUTOMÁTICA FINALIZADA ===');
     console.log(`✅ Processados ${servidores?.length || 0} servidores`);
-    console.log(`🚨 Total de alertas acionados: ${alertasAcionados}`);
-    console.log(`⚠️ Total de erros: ${errosProcessamento}`);
+    console.log(`📊 Sucessos: ${sucessoProcessamento}, Alertas acionados: ${alertasAcionados}, Erros: ${errosProcessamento}`);
 
     // Registrar status da execução
     try {
@@ -225,7 +245,7 @@ const handler = async (req: Request): Promise<Response> => {
           servidor_id: null,
           canal: 'sistema',
           destinatario: 'hetzner-monitor',
-          mensagem: `Execução concluída: ${servidores?.length || 0} servidores, ${alertasAcionados} alertas, ${errosProcessamento} erros`,
+          mensagem: `Execução automática concluída: ${servidores?.length || 0} servidores, ${sucessoProcessamento} sucessos, ${alertasAcionados} alertas enviados, ${errosProcessamento} erros`,
           status: errosProcessamento > 0 ? 'parcial_sucesso' : 'sucesso',
           data_envio: new Date().toISOString()
         });
@@ -237,6 +257,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         success: true,
         servidores_processados: servidores?.length || 0,
+        sucessos_processamento: sucessoProcessamento,
         alertas_acionados: alertasAcionados,
         erros_processamento: errosProcessamento,
         timestamp: new Date().toISOString()

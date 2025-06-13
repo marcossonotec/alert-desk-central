@@ -18,7 +18,7 @@ export async function sendEmailNotification(
     console.log('📧 Destinatário:', notificationEmail);
     console.log('🧪 Modo teste:', isTestMode);
 
-    // Buscar configurações de notificação do usuário para verificar se Resend está ativo
+    // Buscar configurações de Resend para este usuário específico
     const { data: notificationSettings, error: settingsError } = await supabase
       .from('notification_settings')
       .select('*')
@@ -28,18 +28,37 @@ export async function sendEmailNotification(
       .maybeSingle();
 
     if (settingsError) {
-      console.log('⚠️ Erro ao buscar configurações de notificação:', settingsError);
+      console.log('⚠️ Erro ao buscar configurações de Resend:', settingsError);
     }
 
-    // Verificar se Resend está configurado e ativo para este usuário
+    // Para testes, pode usar configuração global, mas para produção exige configuração do usuário
     if (!notificationSettings && !isTestMode) {
-      console.log('⚠️ Resend não está configurado como provider ativo para este usuário');
-      // Tentar usar configuração global do sistema apenas se configurado
+      const error = 'Resend não está configurado e ativo para este usuário';
+      console.error('❌', error);
+      throw new Error(error);
     }
 
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    // Verificar API key (global para testes, do usuário para produção)
+    let resendApiKey = Deno.env.get('RESEND_API_KEY');
+    let fromEmail = 'DeskTools <noreply@tools.flowserv.com.br>';
+    let fromName = 'DeskTools';
+    
+    if (notificationSettings) {
+      // Usar configurações específicas do usuário se disponíveis
+      if (notificationSettings.api_key) {
+        resendApiKey = notificationSettings.api_key;
+        console.log('✅ Usando API key específica do usuário');
+      }
+      
+      if (notificationSettings.from_email) {
+        fromEmail = `${notificationSettings.from_name || 'DeskTools'} <${notificationSettings.from_email}>`;
+        fromName = notificationSettings.from_name || 'DeskTools';
+        console.log('✉️ Usando email personalizado:', fromEmail);
+      }
+    }
+
     if (!resendApiKey) {
-      const error = 'RESEND_API_KEY não configurado nas variáveis de ambiente';
+      const error = 'RESEND_API_KEY não configurado';
       console.error('❌', error);
       throw new Error(error);
     }
@@ -56,7 +75,7 @@ export async function sendEmailNotification(
     
     console.log('📧 Assunto do email:', emailSubject);
     
-    // Buscar template personalizado de email apenas para este usuário
+    // Buscar template personalizado de email ativo para este usuário
     const { data: emailTemplate, error: templateError } = await supabase
       .from('email_templates')
       .select('*')
@@ -70,17 +89,9 @@ export async function sendEmailNotification(
     }
 
     let emailContent;
-    let fromEmail = 'DeskTools <noreply@tools.flowserv.com.br>';
-    
-    // Usar email personalizado se configurado
-    if (notificationSettings && notificationSettings.from_email) {
-      fromEmail = `${notificationSettings.from_name || 'DeskTools'} <${notificationSettings.from_email}>`;
-      console.log('✉️ Usando email personalizado:', fromEmail);
-    }
     
     if (emailTemplate) {
       console.log('✅ Usando template personalizado de email');
-      // Usar template personalizado
       emailContent = replaceTemplateVariables(emailTemplate.html_content, {
         tipo_alerta: getTipoAlertaName(alerta.tipo_alerta),
         servidor_nome: recursoNome,
@@ -91,7 +102,6 @@ export async function sendEmailNotification(
       });
     } else {
       console.log('📝 Usando template padrão de email');
-      // Template padrão melhorado
       emailContent = `
         <!DOCTYPE html>
         <html>
@@ -151,7 +161,6 @@ export async function sendEmailNotification(
 
     console.log('📧 Resposta do Resend:', emailResult);
 
-    // Verificar se houve erro na resposta
     if (emailResult.error) {
       console.error('❌ Erro na resposta do Resend:', emailResult.error);
       throw new Error(`Erro Resend: ${emailResult.error.message || 'Erro desconhecido'}`);

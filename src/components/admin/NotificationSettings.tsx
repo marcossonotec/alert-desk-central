@@ -13,9 +13,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import NotificationTestPanel from './NotificationTestPanel';
+import NotificationChannelSettings from './NotificationChannelSettings';
 
 const NotificationSettings = () => {
-  const [activeTab, setActiveTab] = useState('smtp');
+  const [activeTab, setActiveTab] = useState('channels');
   const [isLoading, setIsLoading] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -71,6 +72,7 @@ const NotificationSettings = () => {
         .from('notification_settings')
         .select('*')
         .eq('usuario_id', user.id)
+        .eq('email_provider', 'resend') // Filtrar apenas Resend
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -81,12 +83,12 @@ const NotificationSettings = () => {
       if (data) {
         console.log('Configurações de notificação carregadas:', data);
         setNotificationSettings({
-          email_provider: data.email_provider || 'smtp',
-          smtp_host: data.smtp_host || '',
-          smtp_port: data.smtp_port || 587,
-          smtp_username: data.smtp_username || '',
-          smtp_password: data.smtp_password || '',
-          smtp_secure: data.smtp_secure !== false,
+          email_provider: 'resend', // Forçar sempre Resend
+          smtp_host: '',
+          smtp_port: 587,
+          smtp_username: '',
+          smtp_password: '',
+          smtp_secure: true,
           api_key: data.api_key || '',
           from_email: data.from_email || '',
           from_name: data.from_name || 'DeskTools',
@@ -127,13 +129,23 @@ const NotificationSettings = () => {
 
     try {
       setIsLoading(true);
-      console.log('Salvando configurações de notificação:', notificationSettings);
+      console.log('Salvando configurações de notificação (Resend apenas):', notificationSettings);
 
       const { data, error } = await supabase
         .from('notification_settings')
         .upsert({
           usuario_id: user.id,
-          ...notificationSettings,
+          email_provider: 'resend', // Sempre Resend
+          api_key: notificationSettings.api_key,
+          from_email: notificationSettings.from_email,
+          from_name: notificationSettings.from_name,
+          is_active: notificationSettings.is_active,
+          // Limpar campos SMTP (não usados para Resend)
+          smtp_host: null,
+          smtp_port: null,
+          smtp_username: null,
+          smtp_password: null,
+          smtp_secure: null,
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'usuario_id'
@@ -148,7 +160,6 @@ const NotificationSettings = () => {
 
       console.log('Configurações de notificação salvas:', data);
 
-      // Atualizar estado local
       if (data) {
         setNotificationSettings(prev => ({
           ...prev,
@@ -158,7 +169,7 @@ const NotificationSettings = () => {
 
       toast({
         title: "Configurações salvas",
-        description: "As configurações de notificação foram salvas com sucesso.",
+        description: "As configurações de email (Resend) foram salvas com sucesso.",
       });
     } catch (error: any) {
       console.error('Erro ao salvar configurações:', error);
@@ -209,13 +220,11 @@ const NotificationSettings = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      if (notificationSettings.from_email && 
-          ((notificationSettings.email_provider === 'smtp' && notificationSettings.smtp_host) ||
-           (notificationSettings.email_provider !== 'smtp' && notificationSettings.api_key))) {
+      if (notificationSettings.from_email && notificationSettings.api_key) {
         setTestStatus('success');
         toast({
           title: "Teste bem-sucedido",
-          description: "Email de teste enviado com sucesso.",
+          description: "Configurações do Resend validadas com sucesso.",
         });
       } else {
         throw new Error('Configurações incompletas');
@@ -224,7 +233,7 @@ const NotificationSettings = () => {
       setTestStatus('error');
       toast({
         title: "Falha no teste",
-        description: "Verifique suas configurações e tente novamente.",
+        description: "Verifique suas configurações do Resend e tente novamente.",
         variant: "destructive"
       });
     } finally {
@@ -257,21 +266,12 @@ const NotificationSettings = () => {
       const newText = text.substring(0, start) + variable + text.substring(end);
       updateTemplateField('html_content', newText);
       
-      // Reposicionar cursor
       setTimeout(() => {
         textarea.focus();
         textarea.setSelectionRange(start + variable.length, start + variable.length);
       }, 0);
     }
   };
-
-  const emailProviders = [
-    { value: 'resend', label: 'Resend (Recomendado)' },
-    { value: 'smtp', label: 'SMTP Personalizado' },
-    { value: 'sendgrid', label: 'SendGrid' },
-    { value: 'google', label: 'Gmail/Google Workspace' },
-    { value: 'amazon_ses', label: 'Amazon SES' }
-  ];
 
   const templateTypes = [
     { value: 'welcome', label: 'Boas-vindas' },
@@ -284,41 +284,26 @@ const NotificationSettings = () => {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="smtp">Configurações de Email</TabsTrigger>
-          <TabsTrigger value="templates">Templates de Email</TabsTrigger>
-          <TabsTrigger value="test">Teste de Notificações</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="channels">Canais</TabsTrigger>
+          <TabsTrigger value="email">Email (Resend)</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="test">Teste</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="smtp" className="space-y-6">
+        <TabsContent value="channels" className="space-y-6">
+          <NotificationChannelSettings />
+        </TabsContent>
+
+        <TabsContent value="email" className="space-y-6">
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="h-5 w-5" />
-                Configurações de Email
+                Configurações de Email - Resend
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Seleção do Provedor */}
-              <div className="space-y-2">
-                <Label>Provedor de Email</Label>
-                <Select
-                  value={notificationSettings.email_provider}
-                  onValueChange={(value) => updateField('email_provider', value)}
-                >
-                  <SelectTrigger className="bg-background border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {emailProviders.map((provider) => (
-                      <SelectItem key={provider.value} value={provider.value}>
-                        {provider.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               {/* Configurações básicas */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -344,77 +329,21 @@ const NotificationSettings = () => {
                 </div>
               </div>
 
-              {/* Configurações específicas do provedor */}
-              {notificationSettings.email_provider === 'smtp' ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="smtp_host">Servidor SMTP</Label>
-                      <Input
-                        id="smtp_host"
-                        placeholder="smtp.gmail.com"
-                        value={notificationSettings.smtp_host}
-                        onChange={(e) => updateField('smtp_host', e.target.value)}
-                        className="bg-background border-border"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp_port">Porta</Label>
-                      <Input
-                        id="smtp_port"
-                        type="number"
-                        placeholder="587"
-                        value={notificationSettings.smtp_port}
-                        onChange={(e) => updateField('smtp_port', parseInt(e.target.value))}
-                        className="bg-background border-border"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp_username">Usuário</Label>
-                      <Input
-                        id="smtp_username"
-                        placeholder="seu.email@gmail.com"
-                        value={notificationSettings.smtp_username}
-                        onChange={(e) => updateField('smtp_username', e.target.value)}
-                        className="bg-background border-border"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp_password">Senha</Label>
-                      <Input
-                        id="smtp_password"
-                        type="password"
-                        placeholder="sua-senha-ou-app-password"
-                        value={notificationSettings.smtp_password}
-                        onChange={(e) => updateField('smtp_password', e.target.value)}
-                        className="bg-background border-border"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="smtp_secure"
-                      checked={notificationSettings.smtp_secure}
-                      onCheckedChange={(checked) => updateField('smtp_secure', checked)}
-                    />
-                    <Label htmlFor="smtp_secure">Usar SSL/TLS</Label>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="api_key">API Key</Label>
-                  <Input
-                    id="api_key"
-                    type="password"
-                    placeholder="Sua API key do provedor"
-                    value={notificationSettings.api_key}
-                    onChange={(e) => updateField('api_key', e.target.value)}
-                    className="bg-background border-border"
-                  />
-                </div>
-              )}
+              {/* API Key do Resend */}
+              <div className="space-y-2">
+                <Label htmlFor="api_key">Resend API Key</Label>
+                <Input
+                  id="api_key"
+                  type="password"
+                  placeholder="re_..."
+                  value={notificationSettings.api_key}
+                  onChange={(e) => updateField('api_key', e.target.value)}
+                  className="bg-background border-border"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Obtenha sua API key em: https://resend.com/api-keys
+                </p>
+              </div>
 
               {/* Status e ações */}
               <div className="flex items-center justify-between pt-4">
@@ -434,7 +363,7 @@ const NotificationSettings = () => {
                     className="border-border hover:bg-accent"
                   >
                     <TestTube className="h-4 w-4 mr-2" />
-                    {testingEmail ? 'Testando...' : 'Testar Email'}
+                    {testingEmail ? 'Testando...' : 'Testar Resend'}
                   </Button>
                   <Switch
                     checked={notificationSettings.is_active}
