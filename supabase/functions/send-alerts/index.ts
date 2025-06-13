@@ -200,7 +200,7 @@ async function processAlert(supabase: any, alerta: any, valor_atual: any, limite
     `;
 
     const emailResult = await resend.emails.send({
-      from: 'DeskTools <noreply@desktools.com.br>',
+      from: 'DeskTools <noreply@tools.flowserv.com.br>',
       to: [notificationEmail],
       subject: emailSubject,
       html: emailContent,
