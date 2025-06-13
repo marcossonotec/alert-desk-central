@@ -19,6 +19,7 @@ export interface AlertData {
   tipo_alerta: string;
   canal_notificacao: string[];
   ativo: boolean;
+  limite_valor: number;
   servidor_id?: string;
   aplicacao_id?: string;
   servidores?: {
@@ -47,5 +48,11 @@ export interface NotificationResult {
   channels_attempted: {
     email: { attempted: boolean; sent: boolean; error: string | null };
     whatsapp: { attempted: boolean; sent: boolean; error: string | null };
+  };
+  alert_details: {
+    tipo_alerta: string;
+    valor_atual: number;
+    limite: number;
+    servidor_nome: string;
   };
 }

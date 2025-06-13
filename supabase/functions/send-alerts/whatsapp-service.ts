@@ -16,6 +16,12 @@ export async function sendWhatsAppNotification(
     console.log('📱 Destinatário:', profile.whatsapp);
     console.log('🧪 Modo teste:', isTestMode);
     
+    if (!profile.whatsapp) {
+      const error = 'Número de WhatsApp não configurado no perfil do usuário';
+      console.error('❌', error);
+      throw new Error(error);
+    }
+    
     // Buscar instância Evolution API do usuário
     const { data: evolutionInstance, error: evolutionError } = await supabase
       .from('evolution_instances')
@@ -46,11 +52,11 @@ export async function sendWhatsAppNotification(
     const dataHora = new Date().toLocaleString('pt-BR');
     const ipServidor = alerta.servidores?.ip || 'N/A';
     
-    // Template padrão se não houver personalizado
+    // Template padrão melhorado se não houver personalizado
     const defaultTemplate = `🚨 *${isTestMode ? 'TESTE - ' : ''}ALERTA: {{tipo_alerta}}*
 
 📊 *${tipoRecurso}:* {{servidor_nome}}
-📍 *IP:* {{ip_servidor}}
+${ipServidor !== 'N/A' ? '📍 *IP:* {{ip_servidor}}' : ''}
 ⚠️ *Problema:* {{tipo_alerta}} em {{valor_atual}}% (limite: {{limite}}%)
 
 🕒 *Data/Hora:* {{data_hora}}
@@ -73,12 +79,25 @@ ${isTestMode ? '⚠️ *Este é um teste do sistema de alertas!*\n\n' : ''}_Mens
 
     console.log('📱 Mensagem formatada:', whatsappMessage);
     
-    // Formatar número do WhatsApp (remover caracteres não numéricos)
-    const whatsappNumber = profile.whatsapp.replace(/\D/g, '');
+    // Formatar número do WhatsApp (remover caracteres não numéricos e garantir formato correto)
+    let whatsappNumber = profile.whatsapp.replace(/\D/g, '');
+    
+    // Adicionar código do país se não existir
+    if (!whatsappNumber.startsWith('55') && whatsappNumber.length <= 11) {
+      whatsappNumber = '55' + whatsappNumber;
+    }
+    
     console.log('📞 Número formatado:', whatsappNumber);
     
     const apiUrl = `${evolutionInstance.api_url}/message/sendText/${evolutionInstance.instance_name}`;
     console.log('🔗 URL da API:', apiUrl);
+
+    const requestBody = {
+      number: whatsappNumber,
+      text: whatsappMessage
+    };
+
+    console.log('📤 Dados sendo enviados:', requestBody);
 
     // Enviar WhatsApp via Evolution API
     const whatsappResponse = await fetch(apiUrl, {
@@ -87,10 +106,7 @@ ${isTestMode ? '⚠️ *Este é um teste do sistema de alertas!*\n\n' : ''}_Mens
         'Content-Type': 'application/json',
         'apikey': evolutionInstance.api_key
       },
-      body: JSON.stringify({
-        number: whatsappNumber,
-        text: whatsappMessage
-      })
+      body: JSON.stringify(requestBody)
     });
 
     const whatsappResult = await whatsappResponse.text();
@@ -101,6 +117,15 @@ ${isTestMode ? '⚠️ *Este é um teste do sistema de alertas!*\n\n' : ''}_Mens
       const error = `Erro na resposta da Evolution API: ${whatsappResponse.status} - ${whatsappResult}`;
       console.error('❌', error);
       throw new Error(error);
+    }
+
+    // Tentar parsear a resposta para verificar se foi bem-sucedida
+    let parsedResult;
+    try {
+      parsedResult = JSON.parse(whatsappResult);
+      console.log('✅ Resposta parseada:', parsedResult);
+    } catch (parseError) {
+      console.log('⚠️ Não foi possível parsear a resposta, mas status é OK');
     }
 
     console.log('✅ WhatsApp enviado com sucesso para:', profile.whatsapp);
@@ -142,7 +167,7 @@ ${isTestMode ? '⚠️ *Este é um teste do sistema de alertas!*\n\n' : ''}_Mens
             alerta_id: alerta.id,
             servidor_id: alerta.servidor_id || null,
             canal: 'whatsapp',
-            destinatario: profile.whatsapp,
+            destinatario: profile.whatsapp || 'não_configurado',
             mensagem: `Erro ao enviar WhatsApp: ${error.message}`,
             status: 'erro_envio',
             data_envio: new Date().toISOString()

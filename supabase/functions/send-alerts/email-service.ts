@@ -18,6 +18,25 @@ export async function sendEmailNotification(
     console.log('📧 Destinatário:', notificationEmail);
     console.log('🧪 Modo teste:', isTestMode);
 
+    // Buscar configurações de notificação do usuário para verificar se Resend está ativo
+    const { data: notificationSettings, error: settingsError } = await supabase
+      .from('notification_settings')
+      .select('*')
+      .eq('usuario_id', alerta.usuario_id)
+      .eq('email_provider', 'resend')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (settingsError) {
+      console.log('⚠️ Erro ao buscar configurações de notificação:', settingsError);
+    }
+
+    // Verificar se Resend está configurado e ativo para este usuário
+    if (!notificationSettings && !isTestMode) {
+      console.log('⚠️ Resend não está configurado como provider ativo para este usuário');
+      // Tentar usar configuração global do sistema apenas se configurado
+    }
+
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
       const error = 'RESEND_API_KEY não configurado nas variáveis de ambiente';
@@ -37,7 +56,7 @@ export async function sendEmailNotification(
     
     console.log('📧 Assunto do email:', emailSubject);
     
-    // Buscar template personalizado de email
+    // Buscar template personalizado de email apenas para este usuário
     const { data: emailTemplate, error: templateError } = await supabase
       .from('email_templates')
       .select('*')
@@ -51,6 +70,13 @@ export async function sendEmailNotification(
     }
 
     let emailContent;
+    let fromEmail = 'DeskTools <noreply@tools.flowserv.com.br>';
+    
+    // Usar email personalizado se configurado
+    if (notificationSettings && notificationSettings.from_email) {
+      fromEmail = `${notificationSettings.from_name || 'DeskTools'} <${notificationSettings.from_email}>`;
+      console.log('✉️ Usando email personalizado:', fromEmail);
+    }
     
     if (emailTemplate) {
       console.log('✅ Usando template personalizado de email');
@@ -65,35 +91,73 @@ export async function sendEmailNotification(
       });
     } else {
       console.log('📝 Usando template padrão de email');
-      // Template padrão
+      // Template padrão melhorado
       emailContent = `
-        <h1>${isTestMode ? 'TESTE - ' : ''}Alerta de Monitoramento</h1>
-        <p><strong>Olá ${profile.nome_completo || 'Usuário'},</strong></p>
-        ${isTestMode ? '<p style="color: #ff6b00; font-weight: bold;">⚠️ Este é um email de teste do sistema de alertas!</p>' : ''}
-        <p>Foi detectado um alerta no seu ${tipoRecurso.toLowerCase()}: <strong>${recursoNome}</strong></p>
-        
-        <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;">
-          <h3 style="color: #dc3545; margin-top: 0;">⚠️ ${getTipoAlertaName(alerta.tipo_alerta)}</h3>
-          <p><strong>Valor atual:</strong> ${valor_atual}${alerta.tipo_alerta.includes('time') ? 'ms' : '%'}</p>
-          <p><strong>Limite configurado:</strong> ${limite}${alerta.tipo_alerta.includes('time') ? 'ms' : '%'}</p>
-          ${ipServidor !== 'N/A' ? `<p><strong>IP do servidor:</strong> ${ipServidor}</p>` : ''}
-          <p><strong>Data/Hora:</strong> ${dataHora}</p>
-        </div>
-        
-        <p>Este é um alerta ${isTestMode ? 'de teste ' : ''}automático do sistema de monitoramento DeskTools.</p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Alerta de Monitoramento</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #dc3545; border-bottom: 3px solid #dc3545; padding-bottom: 10px;">
+              ${isTestMode ? 'TESTE - ' : ''}Alerta de Monitoramento
+            </h1>
+            
+            <p><strong>Olá ${profile.nome_completo || 'Usuário'},</strong></p>
+            
+            ${isTestMode ? '<div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;"><p style="color: #856404; font-weight: bold; margin: 0;">⚠️ Este é um email de teste do sistema de alertas!</p></div>' : ''}
+            
+            <p>Foi detectado um alerta no seu ${tipoRecurso.toLowerCase()}: <strong>${recursoNome}</strong></p>
+            
+            <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; border-left: 4px solid #dc3545; border-radius: 5px; padding: 15px; margin: 20px 0;">
+              <h3 style="color: #721c24; margin-top: 0;">⚠️ ${getTipoAlertaName(alerta.tipo_alerta)}</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 5px 10px; border-bottom: 1px solid #f5c6cb;"><strong>Valor atual:</strong></td>
+                  <td style="padding: 5px 10px; border-bottom: 1px solid #f5c6cb; color: #dc3545; font-weight: bold;">${valor_atual}${alerta.tipo_alerta.includes('time') ? 'ms' : '%'}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 10px; border-bottom: 1px solid #f5c6cb;"><strong>Limite configurado:</strong></td>
+                  <td style="padding: 5px 10px; border-bottom: 1px solid #f5c6cb;">${limite}${alerta.tipo_alerta.includes('time') ? 'ms' : '%'}</td>
+                </tr>
+                ${ipServidor !== 'N/A' ? `<tr><td style="padding: 5px 10px; border-bottom: 1px solid #f5c6cb;"><strong>IP do servidor:</strong></td><td style="padding: 5px 10px; border-bottom: 1px solid #f5c6cb;">${ipServidor}</td></tr>` : ''}
+                <tr>
+                  <td style="padding: 5px 10px;"><strong>Data/Hora:</strong></td>
+                  <td style="padding: 5px 10px;">${dataHora}</td>
+                </tr>
+              </table>
+            </div>
+            
+            <p style="font-size: 14px; color: #666; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+              Este é um alerta ${isTestMode ? 'de teste ' : ''}automático do sistema de monitoramento DeskTools.<br>
+              Para gerenciar seus alertas, acesse: <a href="https://tools.flowserv.com.br" style="color: #007bff;">tools.flowserv.com.br</a>
+            </p>
+          </div>
+        </body>
+        </html>
       `;
     }
 
     console.log('📤 Enviando email via Resend...');
     
     const emailResult = await resend.emails.send({
-      from: 'DeskTools <noreply@tools.flowserv.com.br>',
+      from: fromEmail,
       to: [notificationEmail],
       subject: emailSubject,
       html: emailContent,
     });
 
-    console.log('✅ Email enviado com sucesso via Resend:', emailResult);
+    console.log('📧 Resposta do Resend:', emailResult);
+
+    // Verificar se houve erro na resposta
+    if (emailResult.error) {
+      console.error('❌ Erro na resposta do Resend:', emailResult.error);
+      throw new Error(`Erro Resend: ${emailResult.error.message || 'Erro desconhecido'}`);
+    }
+
+    console.log('✅ Email enviado com sucesso via Resend:', emailResult.data);
 
     // Registrar notificação de email no banco (somente se não for teste)
     if (!isTestMode) {
@@ -102,7 +166,7 @@ export async function sendEmailNotification(
         servidor_id: alerta.servidor_id || null,
         canal: 'email',
         destinatario: notificationEmail,
-        mensagem: emailContent,
+        mensagem: `Email enviado com sucesso via Resend - ID: ${emailResult.data?.id || 'N/A'}`,
         status: 'enviado',
         data_envio: new Date().toISOString()
       };
