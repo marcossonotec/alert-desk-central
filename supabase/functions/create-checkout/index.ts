@@ -34,27 +34,23 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log('Criando checkout para:', { planeName, preco, currency, userId: user.id });
 
-    // Buscar configurações de pagamento do usuário admin
-    const { data: adminProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('plano_ativo', 'admin')
-      .single();
-
-    if (!adminProfile) {
-      throw new Error('Configuração de pagamento não encontrada');
-    }
-
-    const { data: paymentConfig } = await supabase
+    // Buscar configurações de pagamento ativas (qualquer usuário com configuração ativa)
+    const { data: paymentConfig, error: configError } = await supabase
       .from('payment_settings')
       .select('*')
-      .eq('usuario_id', adminProfile.id)
       .eq('is_active', true)
+      .limit(1)
       .single();
 
-    if (!paymentConfig) {
-      throw new Error('Gateway de pagamento não configurado');
+    if (configError || !paymentConfig) {
+      console.error('Erro ao buscar configuração de pagamento:', configError);
+      throw new Error('Gateway de pagamento não configurado. Entre em contato com o suporte.');
     }
+
+    console.log('Configuração de pagamento encontrada:', {
+      gateway: paymentConfig.gateway_type,
+      mode: paymentConfig.mode
+    });
 
     let checkoutUrl: string;
 
@@ -64,12 +60,22 @@ const handler = async (req: Request): Promise<Response> => {
         preco,
         currency,
         userEmail: user.email!,
+        userId: user.id,
         accessToken: paymentConfig.mercadopago_access_token,
         isTest: paymentConfig.mode === 'test'
       });
+    } else if (paymentConfig.gateway_type === 'stripe') {
+      checkoutUrl = await createStripeCheckout({
+        planeName,
+        preco,
+        currency,
+        userEmail: user.email!,
+        userId: user.id,
+        secretKey: paymentConfig.stripe_secret_key,
+        isTest: paymentConfig.mode === 'test'
+      });
     } else {
-      // Stripe implementation seria aqui
-      throw new Error('Stripe não implementado ainda');
+      throw new Error('Gateway de pagamento não suportado');
     }
 
     return new Response(
@@ -97,10 +103,11 @@ async function createMercadoPagoCheckout(params: {
   preco: number;
   currency: string;
   userEmail: string;
+  userId: string;
   accessToken: string;
   isTest: boolean;
 }) {
-  const { planeName, preco, currency, userEmail, accessToken, isTest } = params;
+  const { planeName, preco, currency, userEmail, userId, accessToken, isTest } = params;
   
   const baseUrl = isTest 
     ? 'https://api.mercadopago.com/sandbox'
@@ -126,12 +133,12 @@ async function createMercadoPagoCheckout(params: {
       installments: 12
     },
     back_urls: {
-      success: `${Deno.env.get('SUPABASE_URL')}/success`,
+      success: `${Deno.env.get('SUPABASE_URL')}/success?plan=${planeName}`,
       failure: `${Deno.env.get('SUPABASE_URL')}/cancel`,
       pending: `${Deno.env.get('SUPABASE_URL')}/pending`
     },
     auto_return: 'approved',
-    external_reference: `user_${userEmail}_plan_${planeName}_${Date.now()}`
+    external_reference: `user_${userId}_plan_${planeName}_${Date.now()}`
   };
 
   console.log('Criando preferência MP:', preferenceData);
@@ -155,6 +162,61 @@ async function createMercadoPagoCheckout(params: {
   console.log('Preferência criada:', preference.id);
 
   return preference.init_point;
+}
+
+async function createStripeCheckout(params: {
+  planeName: string;
+  preco: number;
+  currency: string;
+  userEmail: string;
+  userId: string;
+  secretKey: string;
+  isTest: boolean;
+}) {
+  const { planeName, preco, currency, userEmail, userId, secretKey } = params;
+  
+  const stripeData = {
+    payment_method_types: ['card'],
+    line_items: [
+      {
+        price_data: {
+          currency: currency.toLowerCase(),
+          product_data: {
+            name: `Plano ${planeName}`,
+            description: `Assinatura mensal do plano ${planeName}`,
+          },
+          unit_amount: Math.round(preco * 100), // Stripe usa centavos
+        },
+        quantity: 1,
+      },
+    ],
+    mode: 'payment',
+    success_url: `${Deno.env.get('SUPABASE_URL')}/success?plan=${planeName}`,
+    cancel_url: `${Deno.env.get('SUPABASE_URL')}/cancel`,
+    customer_email: userEmail,
+    metadata: {
+      user_id: userId,
+      plan_name: planeName
+    }
+  };
+
+  const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${secretKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(stripeData as any).toString(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error('Erro Stripe:', response.status, errorData);
+    throw new Error(`Erro do Stripe: ${response.status}`);
+  }
+
+  const session = await response.json();
+  return session.url;
 }
 
 serve(handler);
