@@ -1,4 +1,3 @@
-
 import { Resend } from "npm:resend@2.0.0";
 import { AlertData, UserProfile } from "./types.ts";
 import { replaceTemplateVariables, getTipoAlertaName } from "./template-utils.ts";
@@ -40,7 +39,7 @@ export async function sendEmailNotification(
 
     // Verificar API key (global para testes, do usuário para produção)
     let resendApiKey = Deno.env.get('RESEND_API_KEY');
-    let fromEmail = 'DeskTools <noreply@tools.flowserv.com.br>';
+    let fromEmail = 'alertas@tools.flowserv.com.br'; // Email padrão do domínio verificado
     let fromName = 'DeskTools';
     
     if (notificationSettings) {
@@ -51,10 +50,19 @@ export async function sendEmailNotification(
       }
       
       if (notificationSettings.from_email) {
-        fromEmail = `${notificationSettings.from_name || 'DeskTools'} <${notificationSettings.from_email}>`;
-        fromName = notificationSettings.from_name || 'DeskTools';
-        console.log('✉️ Usando email personalizado:', fromEmail);
+        // Validar se o email é do domínio correto
+        if (notificationSettings.from_email.includes('tools.flowserv.com.br')) {
+          fromEmail = `${notificationSettings.from_name || 'DeskTools'} <${notificationSettings.from_email}>`;
+          fromName = notificationSettings.from_name || 'DeskTools';
+          console.log('✉️ Usando email personalizado:', fromEmail);
+        } else {
+          console.log('⚠️ Email do usuário não é do domínio verificado, usando padrão');
+          fromEmail = `${notificationSettings.from_name || 'DeskTools'} <alertas@tools.flowserv.com.br>`;
+        }
       }
+    } else {
+      // Usar configuração padrão para testes
+      fromEmail = 'DeskTools <alertas@tools.flowserv.com.br>';
     }
 
     if (!resendApiKey) {
@@ -64,6 +72,7 @@ export async function sendEmailNotification(
     }
 
     console.log('✅ RESEND_API_KEY encontrado');
+    console.log('📧 From email configurado:', fromEmail);
     const resend = new Resend(resendApiKey);
     
     const recursoNome = alerta.servidores?.nome || alerta.aplicacoes?.nome || 'Recurso desconhecido';
@@ -163,6 +172,12 @@ export async function sendEmailNotification(
 
     if (emailResult.error) {
       console.error('❌ Erro na resposta do Resend:', emailResult.error);
+      
+      // Verificar se é erro de domínio não verificado
+      if (emailResult.error.message && emailResult.error.message.includes('domain is not verified')) {
+        throw new Error(`Erro de domínio: Use um email do domínio tools.flowserv.com.br verificado no Resend. Verifique em https://resend.com/domains`);
+      }
+      
       throw new Error(`Erro Resend: ${emailResult.error.message || 'Erro desconhecido'}`);
     }
 

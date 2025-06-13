@@ -28,7 +28,7 @@ const NotificationSettings = () => {
     smtp_password: '',
     smtp_secure: true,
     api_key: '',
-    from_email: '',
+    from_email: 'alertas@tools.flowserv.com.br', // Email padrão do domínio verificado
     from_name: 'DeskTools',
     is_active: false
   });
@@ -90,7 +90,7 @@ const NotificationSettings = () => {
           smtp_password: '',
           smtp_secure: true,
           api_key: data.api_key || '',
-          from_email: data.from_email || '',
+          from_email: data.from_email || 'alertas@tools.flowserv.com.br',
           from_name: data.from_name || 'DeskTools',
           is_active: data.is_active || false
         });
@@ -126,6 +126,16 @@ const NotificationSettings = () => {
 
   const saveNotificationSettings = async () => {
     if (!user) return;
+
+    // Validar domínio do email
+    if (notificationSettings.from_email && !notificationSettings.from_email.includes('tools.flowserv.com.br')) {
+      toast({
+        title: "Domínio inválido",
+        description: "Use um email do domínio tools.flowserv.com.br (ex: alertas@tools.flowserv.com.br)",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -220,20 +230,22 @@ const NotificationSettings = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      if (notificationSettings.from_email && notificationSettings.api_key) {
+      if (notificationSettings.from_email && 
+          notificationSettings.api_key && 
+          notificationSettings.from_email.includes('tools.flowserv.com.br')) {
         setTestStatus('success');
         toast({
           title: "Teste bem-sucedido",
           description: "Configurações do Resend validadas com sucesso.",
         });
       } else {
-        throw new Error('Configurações incompletas');
+        throw new Error('Configurações incompletas ou domínio inválido');
       }
     } catch (error) {
       setTestStatus('error');
       toast({
         title: "Falha no teste",
-        description: "Verifique suas configurações do Resend e tente novamente.",
+        description: "Verifique suas configurações do Resend e use um email do domínio tools.flowserv.com.br",
         variant: "destructive"
       });
     } finally {
@@ -304,6 +316,22 @@ const NotificationSettings = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Aviso sobre domínio */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-blue-800">Domínio Verificado</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Use apenas emails do domínio <strong>tools.flowserv.com.br</strong> que está verificado no Resend.
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Exemplos: alertas@tools.flowserv.com.br, noreply@tools.flowserv.com.br
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Configurações básicas */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -311,11 +339,14 @@ const NotificationSettings = () => {
                   <Input
                     id="from_email"
                     type="email"
-                    placeholder="noreply@seudominio.com"
+                    placeholder="alertas@tools.flowserv.com.br"
                     value={notificationSettings.from_email}
                     onChange={(e) => updateField('from_email', e.target.value)}
                     className="bg-background border-border"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Deve ser um email do domínio tools.flowserv.com.br
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="from_name">Nome do Remetente</Label>

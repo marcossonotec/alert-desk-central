@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Mail, MessageSquare, Settings, CheckCircle, XCircle } from 'lucide-react';
+import { Mail, MessageSquare, Settings, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,7 @@ interface ChannelSettings {
   whatsapp_enabled: boolean;
   email_configured: boolean;
   whatsapp_configured: boolean;
+  email_domain_verified: boolean;
 }
 
 const NotificationChannelSettings = () => {
@@ -22,7 +23,8 @@ const NotificationChannelSettings = () => {
     email_enabled: false,
     whatsapp_enabled: false,
     email_configured: false,
-    whatsapp_configured: false
+    whatsapp_configured: false,
+    email_domain_verified: false
   });
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
@@ -62,11 +64,16 @@ const NotificationChannelSettings = () => {
         .eq('id', user.id)
         .single();
 
+      // Verificar se o domínio do email está correto (tools.flowserv.com.br)
+      const emailDomainVerified = emailConfig?.from_email ? 
+        emailConfig.from_email.includes('tools.flowserv.com.br') : false;
+
       setChannelSettings({
         email_enabled: !!emailConfig,
         whatsapp_enabled: !!whatsappConfig && !!profile?.whatsapp,
-        email_configured: !!emailConfig && !!emailConfig.from_email,
-        whatsapp_configured: !!whatsappConfig && !!profile?.whatsapp
+        email_configured: !!emailConfig && !!emailConfig.from_email && !!emailConfig.api_key,
+        whatsapp_configured: !!whatsappConfig && !!profile?.whatsapp,
+        email_domain_verified: emailDomainVerified
       });
 
     } catch (error: any) {
@@ -90,26 +97,61 @@ const NotificationChannelSettings = () => {
       if (enabled && !channelSettings.email_configured) {
         toast({
           title: "Email não configurado",
-          description: "Configure primeiro as configurações de email na aba 'Configurações de Email'.",
+          description: "Configure primeiro as configurações de email na aba 'Email (Resend)'.",
           variant: "destructive"
         });
         return;
       }
 
-      const { error } = await supabase
-        .from('notification_settings')
-        .upsert({
-          usuario_id: user.id,
-          email_provider: 'resend',
-          is_active: enabled,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'usuario_id'
+      if (enabled && !channelSettings.email_domain_verified) {
+        toast({
+          title: "Domínio não verificado",
+          description: "Use um email do domínio tools.flowserv.com.br (ex: alertas@tools.flowserv.com.br).",
+          variant: "destructive"
         });
+        return;
+      }
 
-      if (error) throw error;
+      // Buscar configuração existente
+      const { data: existingConfig } = await supabase
+        .from('notification_settings')
+        .select('*')
+        .eq('usuario_id', user.id)
+        .eq('email_provider', 'resend')
+        .maybeSingle();
 
-      setChannelSettings(prev => ({ ...prev, email_enabled: enabled }));
+      if (existingConfig) {
+        // Atualizar configuração existente
+        const { error } = await supabase
+          .from('notification_settings')
+          .update({
+            is_active: enabled,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingConfig.id);
+
+        if (error) throw error;
+      } else if (enabled) {
+        // Criar nova configuração apenas se estiver ativando
+        const { error } = await supabase
+          .from('notification_settings')
+          .insert({
+            usuario_id: user.id,
+            email_provider: 'resend',
+            from_email: 'alertas@tools.flowserv.com.br', // Email padrão do domínio verificado
+            from_name: 'DeskTools',
+            is_active: true,
+            updated_at: new Date().toISOString()
+          });
+
+        if (error) throw error;
+      }
+
+      setChannelSettings(prev => ({ 
+        ...prev, 
+        email_enabled: enabled,
+        email_configured: enabled || prev.email_configured
+      }));
 
       toast({
         title: `Email ${enabled ? 'ativado' : 'desativado'}`,
@@ -200,7 +242,7 @@ const NotificationChannelSettings = () => {
               <p className="text-sm text-muted-foreground">
                 Envio de alertas por email via Resend
               </p>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <Badge variant={channelSettings.email_configured ? "default" : "secondary"}>
                   {channelSettings.email_configured ? (
                     <><CheckCircle className="h-3 w-3 mr-1" /> Configurado</>
@@ -208,14 +250,28 @@ const NotificationChannelSettings = () => {
                     <><XCircle className="h-3 w-3 mr-1" /> Não configurado</>
                   )}
                 </Badge>
+                {channelSettings.email_configured && (
+                  <Badge variant={channelSettings.email_domain_verified ? "default" : "destructive"}>
+                    {channelSettings.email_domain_verified ? (
+                      <><CheckCircle className="h-3 w-3 mr-1" /> Domínio OK</>
+                    ) : (
+                      <><AlertCircle className="h-3 w-3 mr-1" /> Domínio inválido</>
+                    )}
+                  </Badge>
+                )}
               </div>
+              {channelSettings.email_configured && !channelSettings.email_domain_verified && (
+                <p className="text-xs text-red-500 mt-1">
+                  Use email do domínio: tools.flowserv.com.br
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-2">
             <Switch
               checked={channelSettings.email_enabled}
               onCheckedChange={toggleEmailChannel}
-              disabled={isLoading || !channelSettings.email_configured}
+              disabled={isLoading}
             />
             <Label>
               {channelSettings.email_enabled ? 'Ativo' : 'Inativo'}
@@ -247,13 +303,35 @@ const NotificationChannelSettings = () => {
             <Switch
               checked={channelSettings.whatsapp_enabled}
               onCheckedChange={toggleWhatsAppChannel}
-              disabled={isLoading || !channelSettings.whatsapp_configured}
+              disabled={isLoading}
             />
             <Label>
               {channelSettings.whatsapp_enabled ? 'Ativo' : 'Inativo'}
             </Label>
           </div>
         </div>
+
+        {/* Aviso sobre domínio */}
+        {(!channelSettings.email_domain_verified && channelSettings.email_configured) && (
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-yellow-800">Domínio não verificado</h4>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Para usar o Resend, configure um email do domínio <strong>tools.flowserv.com.br</strong> 
+                  (ex: alertas@tools.flowserv.com.br) nas configurações de email.
+                </p>
+                <p className="text-xs text-yellow-600 mt-2">
+                  Verifique se o domínio está configurado em: 
+                  <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline ml-1">
+                    Resend Domains
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Status Geral */}
         <div className="pt-4 border-t border-border">
