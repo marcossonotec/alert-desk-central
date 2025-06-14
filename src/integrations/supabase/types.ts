@@ -689,6 +689,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_servidores_provider_token"
+            columns: ["provider_token_id"]
+            isOneToOne: false
+            referencedRelation: "provider_tokens"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "servidores_provider_token_id_fkey"
             columns: ["provider_token_id"]
             isOneToOne: false

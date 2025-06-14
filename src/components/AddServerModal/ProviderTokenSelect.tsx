@@ -5,18 +5,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Key, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { Plus, Key, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useProviderTokens } from '../AddServerModal/useProviderTokens';
+import { useProviderTokens } from './useProviderTokens';
 
-interface ProviderTokenSectionProps {
+interface ProviderTokenSelectProps {
   provedor: string;
   selectedTokenId?: string;
   onTokenSelect: (tokenId: string | undefined) => void;
 }
 
-const ProviderTokenSection: React.FC<ProviderTokenSectionProps> = ({
+const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
   provedor,
   selectedTokenId,
   onTokenSelect,
@@ -26,7 +26,6 @@ const ProviderTokenSection: React.FC<ProviderTokenSectionProps> = ({
   const [showNewTokenForm, setShowNewTokenForm] = useState(false);
   const [newToken, setNewToken] = useState({ token: '', nickname: '' });
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
 
   const handleCreateToken = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,55 +65,13 @@ const ProviderTokenSection: React.FC<ProviderTokenSectionProps> = ({
     }
   };
 
-  const handleTestConnection = async () => {
-    if (!selectedTokenId) {
-      toast({ title: "Selecione um token primeiro", variant: "destructive" });
-      return;
-    }
-
-    setTesting(true);
-    try {
-      // Aqui você pode implementar um teste real da API do provedor
-      // Por enquanto, vamos simular um teste
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      toast({ title: "Conexão testada com sucesso!" });
-    } catch (error: any) {
-      toast({ 
-        title: "Erro no teste de conexão", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    } finally {
-      setTesting(false);
-    }
-  };
-
   if (provedor === 'outros') {
     return (
-      <Card className="bg-card/50 border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center space-x-2 text-foreground">
-            <WifiOff className="h-5 w-5 text-muted-foreground" />
-            <span>Coleta via Agente</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">
-            Para servidores "outros", a coleta será feita via agente instalado no servidor.
-            Configure a API Key do agente na seção acima.
-          </div>
-        </CardContent>
-      </Card>
+      <div className="text-sm text-muted-foreground">
+        Para servidores "outros", a coleta será feita via agente instalado no servidor.
+      </div>
     );
   }
-
-  const statusIcon = selectedTokenId ? (
-    <Wifi className="h-5 w-5 text-green-600" />
-  ) : (
-    <WifiOff className="h-5 w-5 text-orange-600" />
-  );
-
-  const statusText = selectedTokenId ? "Coleta Real" : "Coleta Simulada";
 
   return (
     <Card className="bg-card/50 border-border">
@@ -122,10 +79,6 @@ const ProviderTokenSection: React.FC<ProviderTokenSectionProps> = ({
         <CardTitle className="text-lg flex items-center space-x-2 text-foreground">
           <Key className="h-5 w-5 text-primary" />
           <span>Token da API {provedor}</span>
-          <div className="flex items-center gap-1 ml-auto">
-            {statusIcon}
-            <span className="text-sm font-normal">{statusText}</span>
-          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -135,31 +88,20 @@ const ProviderTokenSection: React.FC<ProviderTokenSectionProps> = ({
           <>
             {tokens.length > 0 && (
               <div className="space-y-2">
-                <Label>Token selecionado</Label>
-                <div className="flex gap-2">
-                  <Select value={selectedTokenId || ""} onValueChange={onTokenSelect}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Selecione um token..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Nenhum (coleta simulada)</SelectItem>
-                      {tokens.map((token) => (
-                        <SelectItem key={token.id} value={token.id}>
-                          {token.nickname} ({token.token.substring(0, 8)}...)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleTestConnection}
-                    disabled={!selectedTokenId || testing}
-                    size="sm"
-                  >
-                    {testing ? 'Testando...' : 'Testar'}
-                  </Button>
-                </div>
+                <Label>Selecionar token existente</Label>
+                <Select value={selectedTokenId || ""} onValueChange={onTokenSelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um token..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nenhum token selecionado</SelectItem>
+                    {tokens.map((token) => (
+                      <SelectItem key={token.id} value={token.id}>
+                        {token.nickname} ({token.token.substring(0, 8)}...)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
@@ -171,7 +113,7 @@ const ProviderTokenSection: React.FC<ProviderTokenSectionProps> = ({
                 className="w-full"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                {tokens.length === 0 ? 'Adicionar Primeiro Token' : 'Criar Novo Token'}
+                {tokens.length === 0 ? 'Adicionar Token' : 'Criar Novo Token'}
               </Button>
             ) : (
               <form onSubmit={handleCreateToken} className="space-y-3">
@@ -216,10 +158,8 @@ const ProviderTokenSection: React.FC<ProviderTokenSectionProps> = ({
             <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
               <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
               <div className="text-xs text-blue-800 dark:text-blue-200">
-                <strong>Status:</strong> {selectedTokenId ? 
-                  'Métricas reais serão coletadas da API do provedor.' : 
-                  'Métricas simuladas serão usadas para demonstração.'
-                }
+                <strong>Dica:</strong> O token permite coletar métricas reais do provedor. 
+                Sem token, serão usadas métricas simuladas para demonstração.
               </div>
             </div>
           </>
@@ -229,4 +169,4 @@ const ProviderTokenSection: React.FC<ProviderTokenSectionProps> = ({
   );
 };
 
-export default ProviderTokenSection;
+export default ProviderTokenSelect;

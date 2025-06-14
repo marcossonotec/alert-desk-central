@@ -1,96 +1,130 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { TestTube, Code } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import UserManagement from './UserManagement';
-import SubscriptionManagement from './SubscriptionManagement';
-import PaymentSettings from './PaymentSettings';
-import NotificationSettings from './NotificationSettings';
-import AlertsManagement from './AlertsManagement';
 import ServerManagement from './ServerManagement';
+import AlertsManagement from './AlertsManagement';
+import NotificationSettings from './NotificationSettings';
+import PaymentSettings from './PaymentSettings';
+import SubscriptionManagement from './SubscriptionManagement';
+import NotificationTestPanel from './NotificationTestPanel';
 import SimpleMonitoringGuide from './SimpleMonitoringGuide';
-import AlertTestModal from './AlertTestModal';
-import ProviderTokenManager from "@/components/admin/ProviderTokenManager";
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Users, Server, Bell, CreditCard, UserCheck, Settings, BookOpen } from 'lucide-react';
 
-const AdminDashboard = () => {
-  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
-
+const AdminDashboard: React.FC = () => {
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Painel Administrativo</h1>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setIsTestModalOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <TestTube className="h-4 w-4" />
-            Testar Alertas
-          </Button>
-        </div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-foreground">Painel Administrativo</h1>
       </div>
 
-      <Tabs defaultValue="users" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="users">Usuários</TabsTrigger>
-          <TabsTrigger value="subscriptions">Assinaturas</TabsTrigger>
-          <TabsTrigger value="payments">Pagamentos</TabsTrigger>
-          <TabsTrigger value="notifications">Notificações</TabsTrigger>
-          <TabsTrigger value="alerts">Alertas</TabsTrigger>
-          <TabsTrigger value="servers">Servidores</TabsTrigger>
-          <TabsTrigger value="monitoring" className="flex items-center gap-1">
-            <Code className="h-3 w-3" />
-            Scripts
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-7 bg-muted">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Usuários
+          </TabsTrigger>
+          <TabsTrigger value="servers" className="flex items-center gap-2">
+            <Server className="h-4 w-4" />
+            Servidores
+          </TabsTrigger>
+          <TabsTrigger value="alerts" className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            Alertas
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            Notificações
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            Pagamentos
+          </TabsTrigger>
+          <TabsTrigger value="guide" className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            Guia
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">0</div>
+                <p className="text-xs text-muted-foreground">Usuários cadastrados</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Servidores Ativos</CardTitle>
+                <Server className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">0</div>
+                <p className="text-xs text-muted-foreground">Em monitoramento</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Alertas Enviados</CardTitle>
+                <Bell className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">0</div>
+                <p className="text-xs text-muted-foreground">Últimas 24h</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Assinaturas Ativas</CardTitle>
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">0</div>
+                <p className="text-xs text-muted-foreground">Planos pagos</p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         <TabsContent value="users">
           <UserManagement />
-        </TabsContent>
-
-        <TabsContent value="subscriptions">
-          <SubscriptionManagement />
-        </TabsContent>
-
-        <TabsContent value="payments">
-          <PaymentSettings />
-        </TabsContent>
-
-        <TabsContent value="notifications">
-          <NotificationSettings />
-        </TabsContent>
-
-        <TabsContent value="alerts">
-          <AlertsManagement />
         </TabsContent>
 
         <TabsContent value="servers">
           <ServerManagement />
         </TabsContent>
 
-        <TabsContent value="monitoring">
+        <TabsContent value="alerts">
+          <AlertsManagement />
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-6">
+          <NotificationSettings />
+          <NotificationTestPanel />
+        </TabsContent>
+
+        <TabsContent value="payments" className="space-y-6">
+          <PaymentSettings />
+          <SubscriptionManagement />
+        </TabsContent>
+
+        <TabsContent value="guide">
           <SimpleMonitoringGuide />
         </TabsContent>
       </Tabs>
-
-      {/* Novo bloco de atalho para tokens */}
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle>
-            Tokens de Provedores Cloud
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProviderTokenManager />
-        </CardContent>
-      </Card>
-
-      <AlertTestModal 
-        isOpen={isTestModalOpen} 
-        onClose={() => setIsTestModalOpen(false)} 
-      />
     </div>
   );
 };
