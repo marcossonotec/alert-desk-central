@@ -5,26 +5,46 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Server, Globe } from 'lucide-react';
+import { Server, Globe, Cloud } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useProviderTokens } from './AddServerModal/useProviderTokens';
 
 interface ServerConfigModalProps {
   server: {
     id: string;
-    name: string;
+    nome: string;
     ip: string;
     provedor?: string;
+    webhook_url?: string;
+    provider_token_id?: string;
+    status?: string;
   };
   isOpen: boolean;
   onClose: () => void;
   onUpdate: () => void;
 }
+
+const provedores = [
+  { value: "hetzner", label: "Hetzner Cloud" },
+  { value: "aws", label: "Amazon AWS" },
+  { value: "digitalocean", label: "DigitalOcean" },
+  { value: "vultr", label: "Vultr" },
+  { value: "linode", label: "Linode" },
+  { value: "outros", label: "Outros" },
+];
+
+const statusOptions = [
+  { value: "ativo", label: "Ativo" },
+  { value: "inativo", label: "Inativo" },
+  { value: "manutencao", label: "Manutenção" },
+];
 
 const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
   server,
@@ -33,20 +53,56 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
   onUpdate,
 }) => {
   const [formData, setFormData] = useState({
-    nome: server.name,
-    ip: server.ip,
+    nome: server.nome || "",
+    ip: server.ip || "",
     provedor: server.provedor || 'hetzner',
+    provider_token_id: server.provider_token_id || "",
+    webhook_url: server.webhook_url || "",
+    status: server.status || "ativo",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [showAddToken, setShowAddToken] = useState(false);
   const { toast } = useToast();
+
+  // Buscar tokens do provedor selecionado
+  const { providerTokens, fetchingTokens, refetch } = useProviderTokens(formData.provedor, true);
 
   useEffect(() => {
     setFormData({
-      nome: server.name,
-      ip: server.ip,
+      nome: server.nome || "",
+      ip: server.ip || "",
       provedor: server.provedor || 'hetzner',
+      provider_token_id: server.provider_token_id || "",
+      webhook_url: server.webhook_url || "",
+      status: server.status || "ativo",
     });
   }, [server]);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleProviderChange = (value: string) => {
+    setFormData({ ...formData, provedor: value, provider_token_id: "" });
+    setShowAddToken(false);
+  };
+
+  const handleTokenSelect = (id: string) => {
+    setFormData({ ...formData, provider_token_id: id });
+  };
+
+  const handleNewToken = () => setShowAddToken(true);
+
+  const handleTokenAdded = async () => {
+    setShowAddToken(false);
+    await refetch();
+  };
+
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFormData({ ...formData, status: e.target.value });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +115,9 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
           nome: formData.nome,
           ip: formData.ip,
           provedor: formData.provedor,
+          provider_token_id: formData.provedor !== "outros" ? (formData.provider_token_id || null) : null,
+          webhook_url: formData.webhook_url || null,
+          status: formData.status,
           data_atualizacao: new Date().toISOString()
         })
         .eq('id', server.id);
@@ -69,7 +128,7 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
         title: "Servidor atualizado",
         description: "As configurações do servidor foram salvas com sucesso.",
       });
-      
+
       onUpdate();
       onClose();
     } catch (error: any) {
@@ -84,6 +143,36 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
     }
   };
 
+  // Exclusão
+  const [deleting, setDeleting] = useState(false);
+  const handleDelete = async () => {
+    if (!window.confirm("Tem certeza que deseja excluir este servidor? Esta ação não pode ser desfeita.")) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('servidores')
+        .delete()
+        .eq('id', server.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Servidor excluído",
+        description: "O servidor foi removido com sucesso.",
+      });
+      onUpdate();
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao excluir servidor",
+        description: "Não foi possível remover o servidor.",
+        variant: "destructive"
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-card border-border max-w-2xl">
@@ -92,8 +181,11 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
             <Server className="h-6 w-6 text-primary" />
             <span>Configurar Servidor</span>
           </DialogTitle>
+          <DialogDescription>
+            Edite as informações do seu servidor ou exclua-o.
+          </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <Card className="bg-card/50 border-border">
             <CardHeader className="pb-3">
@@ -108,8 +200,9 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
                   <Label htmlFor="nome" className="text-foreground">Nome do Servidor</Label>
                   <Input
                     id="nome"
+                    name="nome"
                     value={formData.nome}
-                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    onChange={handleInputChange}
                     className="bg-background border-border text-foreground"
                     required
                   />
@@ -120,50 +213,133 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
                     <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="ip"
+                      name="ip"
                       value={formData.ip}
-                      onChange={(e) => setFormData({ ...formData, ip: e.target.value })}
+                      onChange={handleInputChange}
                       className="bg-background border-border text-foreground pl-10"
                       required
                     />
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
-                <Label htmlFor="provedor" className="text-foreground">Provedor</Label>
+                <Label className="text-foreground">Provedor</Label>
+                <div className="relative">
+                  <Cloud className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                  <select
+                    name="provedor"
+                    id="provedor"
+                    value={formData.provedor}
+                    onChange={e => handleProviderChange(e.target.value)}
+                    className="w-full p-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary pl-10"
+                  >
+                    {provedores.map((prov) => (
+                      <option key={prov.value} value={prov.value}>{prov.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {formData.provedor !== "outros" && (
+                <div className="space-y-2">
+                  <Label className="text-foreground">Token de API do provedor</Label>
+                  {fetchingTokens ? (
+                    <div className="text-sm text-muted-foreground">Carregando tokens...</div>
+                  ) : providerTokens.length > 0 && !showAddToken ? (
+                    <div className="flex flex-col gap-2">
+                      <select
+                        value={formData.provider_token_id}
+                        onChange={e => handleTokenSelect(e.target.value)}
+                        className="border rounded px-3 py-2"
+                        required
+                      >
+                        <option value="" disabled>Selecione um token</option>
+                        {providerTokens.map(token => (
+                          <option key={token.id} value={token.id}>
+                            {token.nickname || token.token.slice(0,5)+"..."+token.token.slice(-4)}
+                          </option>
+                        ))}
+                      </select>
+                      <Button type="button" size="sm" variant="secondary" onClick={handleNewToken}>
+                        Cadastrar novo token
+                      </Button>
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Reutiliza o componente inline do cadastro normal */}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={handleTokenAdded}
+                      >
+                        Atualizar lista de tokens
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="webhook_url" className="text-foreground">Webhook URL</Label>
+                <Input
+                  id="webhook_url"
+                  name="webhook_url"
+                  placeholder="https://sua-url-de-webhook.com"
+                  value={formData.webhook_url}
+                  onChange={handleInputChange}
+                  className="bg-background border-border"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status" className="text-foreground">Status</Label>
                 <select
-                  id="provedor"
-                  value={formData.provedor}
-                  onChange={(e) => setFormData({ ...formData, provedor: e.target.value })}
+                  id="status"
+                  name="status"
+                  value={formData.status}
+                  onChange={handleStatusChange}
                   className="w-full p-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="hetzner">Hetzner Cloud</option>
-                  <option value="aws">Amazon AWS</option>
-                  <option value="digitalocean">DigitalOcean</option>
-                  <option value="vultr">Vultr</option>
-                  <option value="linode">Linode</option>
-                  <option value="outros">Outros</option>
+                  {statusOptions.map((status) => (
+                    <option key={status.value} value={status.value}>
+                      {status.label}
+                    </option>
+                  ))}
                 </select>
               </div>
+
             </CardContent>
           </Card>
-          
-          <div className="flex justify-end gap-3 pt-4">
+
+          <div className="flex justify-between gap-4 pt-4">
             <Button
               type="button"
-              variant="outline"
-              onClick={onClose}
-              className="border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex-none"
             >
-              Cancelar
+              {deleting ? "Excluindo..." : "Excluir Servidor"}
             </Button>
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              {isLoading ? 'Salvando...' : 'Salvar Alterações'}
-            </Button>
+            <div className="flex gap-3 justify-end flex-1">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                className="border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                {isLoading ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

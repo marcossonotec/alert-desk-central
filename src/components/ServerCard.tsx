@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +28,8 @@ interface ServerCardProps {
     provedor?: string;
     status?: string;
     ultima_verificacao?: string;
+    webhook_url?: string;
+    provider_token_id?: string;
   };
   onUpdate: () => void;
   isAdmin?: boolean;
@@ -241,7 +242,6 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
               <Eye className="h-4 w-4 mr-1" />
               Métricas
             </Button>
-            
             <Button
               size="sm"
               variant="outline"
@@ -252,7 +252,6 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
               Alertas
             </Button>
           </div>
-          
           <div className="flex gap-2">
             <Button
               size="sm"
@@ -263,7 +262,6 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
               <Settings className="h-4 w-4 mr-1" />
               Configurar
             </Button>
-            
             {isAdmin && (
               <Button
                 size="sm"
@@ -277,7 +275,6 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
               </Button>
             )}
           </div>
-          
           {server.ultima_verificacao && (
             <p className="text-xs text-muted-foreground text-center pt-2">
               Última verificação: {new Date(server.ultima_verificacao).toLocaleString()}
@@ -288,7 +285,15 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
 
       {/* Modais */}
       <ServerConfigModal
-        server={{ id: server.id, name: server.nome, ip: server.ip, provedor: server.provedor }}
+        server={{ 
+          id: server.id, 
+          nome: server.nome, 
+          ip: server.ip, 
+          provedor: server.provedor, 
+          webhook_url: server.webhook_url, 
+          provider_token_id: server.provider_token_id,
+          status: server.status,
+        }}
         isOpen={showConfigModal}
         onClose={() => setShowConfigModal(false)}
         onUpdate={onUpdate}
