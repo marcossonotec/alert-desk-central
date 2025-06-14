@@ -646,45 +646,52 @@ export type Database = {
       }
       servidores: {
         Row: {
-          api_key: string
           data_atualizacao: string | null
           data_criacao: string | null
           id: string
           ip: string
           nome: string
           provedor: string | null
+          provider_token_id: string | null
           status: string | null
           ultima_verificacao: string | null
           usuario_id: string
           webhook_url: string
         }
         Insert: {
-          api_key: string
           data_atualizacao?: string | null
           data_criacao?: string | null
           id?: string
           ip: string
           nome: string
           provedor?: string | null
+          provider_token_id?: string | null
           status?: string | null
           ultima_verificacao?: string | null
           usuario_id: string
           webhook_url: string
         }
         Update: {
-          api_key?: string
           data_atualizacao?: string | null
           data_criacao?: string | null
           id?: string
           ip?: string
           nome?: string
           provedor?: string | null
+          provider_token_id?: string | null
           status?: string | null
           ultima_verificacao?: string | null
           usuario_id?: string
           webhook_url?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "servidores_provider_token_id_fkey"
+            columns: ["provider_token_id"]
+            isOneToOne: false
+            referencedRelation: "provider_tokens"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "servidores_usuario_id_fkey"
             columns: ["usuario_id"]

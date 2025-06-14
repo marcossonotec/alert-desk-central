@@ -1,16 +1,13 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Server, Globe, Key, Webhook, Cloud } from 'lucide-react';
+import { Server } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import AddProviderTokenInline from "./AddProviderTokenInline";
 import ServerBasicInfoFields from "./AddServerModal/ServerBasicInfoFields";
-import ServerApiKeyField from "./AddServerModal/ServerApiKeyField";
+// REMOVE import ServerApiKeyField
 
 interface AddServerModalProps {
   isOpen: boolean;
@@ -23,7 +20,6 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
     nome: '',
     ip: '',
     webhook_url: '',
-    api_key: '',
     provedor: 'hetzner',
     provider_token_id: ''
   });
@@ -115,9 +111,9 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
           usuario_id: user.id,
           nome: formData.nome,
           ip: formData.ip,
-          api_key: formData.api_key,
           provedor: formData.provedor,
           provider_token_id: formData.provider_token_id || null,
+          webhook_url: formData.webhook_url || null,
           status: 'ativo'
         })
         .select()
@@ -137,7 +133,6 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
         nome: '',
         ip: '',
         webhook_url: '',
-        api_key: '',
         provedor: 'hetzner',
         provider_token_id: ''
       });
@@ -182,10 +177,7 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
             onTokenAdded={handleTokenAdded}
           />
 
-          <ServerApiKeyField
-            apiKeyValue={formData.api_key}
-            onInputChange={handleInputChange}
-          />
+          {/* Removido o campo de API Key, agora só token */}
 
           {/* Botões de Ação */}
           <div className="flex justify-end space-x-4">
@@ -212,3 +204,4 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
 };
 
 export default AddServerModal;
+
