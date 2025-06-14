@@ -1,35 +1,40 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-export function useProviderTokens(provider: string, shouldFetch: boolean) {
-  const [providerTokens, setProviderTokens] = useState<any[]>([]);
-  const [fetchingTokens, setFetchingTokens] = useState(false);
+export function useProviderTokens(provider: string) {
+  const [tokens, setTokens] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
-    if (!shouldFetch) return;
-    setFetchingTokens(true);
+    if (!provider || provider === 'outros') return;
+    
+    setIsLoading(true);
     supabase
       .from("provider_tokens")
       .select("*")
       .eq("provider", provider)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
-        setProviderTokens(data || []);
-        setFetchingTokens(false);
+        setTokens(data || []);
+        setIsLoading(false);
       });
-  }, [provider, shouldFetch]);
+  }, [provider]);
 
   const refetch = async () => {
-    setFetchingTokens(true);
+    if (!provider || provider === 'outros') return;
+    
+    setIsLoading(true);
     const { data } = await supabase
       .from("provider_tokens")
       .select("*")
       .eq("provider", provider)
       .order("created_at", { ascending: false });
-    setProviderTokens(data || []);
-    setFetchingTokens(false);
+    setTokens(data || []);
+    setIsLoading(false);
   };
 
-  return { providerTokens, fetchingTokens, refetch };
+  return { tokens, isLoading, refetch };
 }

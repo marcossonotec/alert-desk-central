@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Key, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useProviderTokens } from './useProviderTokens';
 
 interface ProviderTokenSelectProps {
@@ -22,6 +23,7 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
   onTokenSelect,
 }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { tokens, isLoading, refetch } = useProviderTokens(provedor);
   const [showNewTokenForm, setShowNewTokenForm] = useState(false);
   const [newToken, setNewToken] = useState({ token: '', nickname: '' });
@@ -29,7 +31,7 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
 
   const handleCreateToken = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newToken.token.trim()) {
+    if (!newToken.token.trim() || !user) {
       toast({ title: "Token é obrigatório", variant: "destructive" });
       return;
     }
@@ -42,6 +44,7 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
           provider: provedor,
           token: newToken.token.trim(),
           nickname: newToken.nickname.trim() || `Token ${provedor}`,
+          usuario_id: user.id,
         })
         .select()
         .single();
