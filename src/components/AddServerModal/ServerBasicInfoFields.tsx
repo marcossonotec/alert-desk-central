@@ -1,11 +1,10 @@
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Server, Cloud, Globe } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import AddProviderTokenInline from "../AddProviderTokenInline";
-import { Button } from "@/components/ui/button";
 
 interface ServerBasicInfoFieldsProps {
   formData: any;
@@ -18,8 +17,11 @@ interface ServerBasicInfoFieldsProps {
   onTokenSelect: (id: string) => void;
   onNewToken: () => void;
   onTokenAdded: (newId?: string) => void;
+  onProviderTokenInput?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onProviderTokenNickname?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
+// Remove o botão "Cadastrar token" e delega para o AddServerForm (fluxo único)
 const ServerBasicInfoFields: React.FC<ServerBasicInfoFieldsProps> = ({
   formData,
   provedores,
@@ -29,8 +31,8 @@ const ServerBasicInfoFields: React.FC<ServerBasicInfoFieldsProps> = ({
   onInputChange,
   onProviderChange,
   onTokenSelect,
-  onNewToken,
-  onTokenAdded,
+  onProviderTokenInput,
+  onProviderTokenNickname,
 }) => {
   return (
     <Card className="bg-card/50 border-border">
@@ -99,7 +101,7 @@ const ServerBasicInfoFields: React.FC<ServerBasicInfoFieldsProps> = ({
             <Label className="text-foreground">Token de API do provedor</Label>
             {fetchingTokens ? (
               <div className="text-sm text-muted-foreground">Carregando tokens...</div>
-            ) : providerTokens.length > 0 && !showAddToken ? (
+            ) : providerTokens.length > 0 ? (
               <div className="flex flex-col gap-2">
                 <select
                   value={formData.provider_token_id}
@@ -114,21 +116,9 @@ const ServerBasicInfoFields: React.FC<ServerBasicInfoFieldsProps> = ({
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  className="text-xs text-primary underline w-fit pl-1 hover:opacity-80"
-                  onClick={onNewToken}
-                  style={{ background: "none", border: "none", padding: 0 }}
-                >
-                  Não tem token? Cadastre aqui
-                </button>
               </div>
-            ) : (
-              <AddProviderTokenInline
-                provider={formData.provedor}
-                onSuccess={onTokenAdded}
-              />
-            )}
+            ) : null}
+            {/* Removido botão "Cadastrar token" – criação é automática pelo AddServerForm */}
           </div>
         )}
       </CardContent>

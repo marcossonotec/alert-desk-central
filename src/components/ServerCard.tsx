@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import ServerConfigModal from './ServerConfigModal';
 import ServerMetricsModal from './ServerMetricsModal';
 import AlertConfigModal from './AlertConfigModal';
+import RealDataBadge from './RealDataBadge';
 
 interface ServerCardProps {
   server: {
@@ -152,6 +153,10 @@ const ServerCard: React.FC<ServerCardProps> = ({ server, onUpdate, isAdmin = fal
             <CardTitle className="text-lg flex items-center space-x-2">
               <Server className="h-5 w-5 text-primary" />
               <span className="text-foreground">{server.nome}</span>
+              {/* Indicador dados reais/simulado */}
+              <span>
+                <RealDataBadge metricas={metrics} />
+              </span>
             </CardTitle>
             <div className="flex items-center space-x-2">
               <Badge className={`${getStatusColor(server.status)} text-white`}>
