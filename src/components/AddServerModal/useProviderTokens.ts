@@ -10,17 +10,23 @@ export function useProviderTokens(provider: string) {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (!provider || provider === 'outros') return;
+    if (!provider || provider === 'outros') {
+      console.log('Provider é "outros" ou vazio, não buscando tokens');
+      setTokens([]);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
     
     const fetchTokens = async () => {
       try {
         setIsLoading(true);
         setError(null);
         
-        console.log('Buscando tokens para provider:', provider, 'user:', user?.id);
+        console.log('useProviderTokens: Buscando tokens para provider:', provider, 'user:', user?.id);
         
         if (!user?.id) {
-          console.log('Usuário não autenticado');
+          console.log('useProviderTokens: Usuário não autenticado');
           setTokens([]);
           return;
         }
@@ -33,15 +39,15 @@ export function useProviderTokens(provider: string) {
           .order("created_at", { ascending: false });
 
         if (fetchError) {
-          console.error('Erro ao buscar tokens:', fetchError);
+          console.error('useProviderTokens: Erro ao buscar tokens:', fetchError);
           setError(fetchError.message);
           setTokens([]);
         } else {
-          console.log('Tokens encontrados:', data);
+          console.log('useProviderTokens: Tokens encontrados:', data?.length || 0);
           setTokens(data || []);
         }
       } catch (err: any) {
-        console.error('Erro inesperado ao buscar tokens:', err);
+        console.error('useProviderTokens: Erro inesperado ao buscar tokens:', err);
         setError(err.message || 'Erro inesperado');
         setTokens([]);
       } finally {
@@ -53,13 +59,19 @@ export function useProviderTokens(provider: string) {
   }, [provider, user?.id]);
 
   const refetch = async () => {
-    if (!provider || provider === 'outros') return;
+    if (!provider || provider === 'outros') {
+      console.log('useProviderTokens refetch: Provider é "outros" ou vazio');
+      return;
+    }
     
     try {
       setIsLoading(true);
       setError(null);
       
+      console.log('useProviderTokens refetch: Recarregando tokens para provider:', provider);
+      
       if (!user?.id) {
+        console.log('useProviderTokens refetch: Usuário não autenticado');
         setTokens([]);
         return;
       }
@@ -72,14 +84,15 @@ export function useProviderTokens(provider: string) {
         .order("created_at", { ascending: false });
 
       if (fetchError) {
-        console.error('Erro ao refetch tokens:', fetchError);
+        console.error('useProviderTokens refetch: Erro ao refetch tokens:', fetchError);
         setError(fetchError.message);
         setTokens([]);
       } else {
+        console.log('useProviderTokens refetch: Tokens recarregados:', data?.length || 0);
         setTokens(data || []);
       }
     } catch (err: any) {
-      console.error('Erro inesperado no refetch:', err);
+      console.error('useProviderTokens refetch: Erro inesperado no refetch:', err);
       setError(err.message || 'Erro inesperado');
       setTokens([]);
     } finally {

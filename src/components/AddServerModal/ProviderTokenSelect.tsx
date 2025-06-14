@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Key, AlertCircle, ExclamationTriangleIcon } from 'lucide-react';
+import { Plus, Key, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -96,7 +96,7 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
       <Card className="bg-card/50 border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center space-x-2 text-foreground">
-            <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
+            <AlertTriangle className="h-5 w-5 text-red-500" />
             <span>Erro ao carregar tokens</span>
           </CardTitle>
         </CardHeader>
