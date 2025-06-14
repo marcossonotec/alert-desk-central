@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AlertRequest } from "./types.ts";
@@ -35,7 +34,33 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    const requestBody: AlertRequest = await req.json();
+    // CORREÇÃO: Garantir que body JSON está presente antes de dar parse
+    let bodyString = "";
+    try {
+      bodyString = await req.text();
+      if (!bodyString) {
+        throw new Error("Request sem JSON body");
+      }
+    } catch (err) {
+      const message = "Body ausente ou inválido em send-alerts";
+      console.error('❌', message, err);
+      return new Response(JSON.stringify({ error: message, success: false }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+    }
+
+    let requestBody: AlertRequest;
+    try {
+      requestBody = JSON.parse(bodyString);
+    } catch (err) {
+      const message = "Body JSON inválido em send-alerts";
+      console.error('❌', message, err);
+      return new Response(JSON.stringify({ error: message, success: false }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+    }
     console.log('📨 Request body recebido:', requestBody);
 
     // Verificar se é modo de teste

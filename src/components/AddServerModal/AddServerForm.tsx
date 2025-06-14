@@ -6,6 +6,17 @@ import { useProviderTokens } from "./useProviderTokens";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+// Atualizar tipo para incluir campos internos opcionais
+interface AddServerFormData {
+  nome: string;
+  ip: string;
+  webhook_url: string;
+  provedor: string;
+  provider_token_id: string;
+  __new_provider_token_value?: string;
+  __new_provider_token_nickname?: string;
+}
+
 interface AddServerFormProps {
   onCancel: () => void;
   onAddServer: (serverData: any) => void;
@@ -20,7 +31,7 @@ const provedores = [
   { value: "outros", label: "Outros" },
 ];
 
-const initialState = {
+const initialState: AddServerFormData = {
   nome: "",
   ip: "",
   webhook_url: "",
@@ -29,7 +40,8 @@ const initialState = {
 };
 
 const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) => {
-  const [formData, setFormData] = useState(initialState);
+  // Trocar para tipar corretamente (AddServerFormData)
+  const [formData, setFormData] = useState<AddServerFormData>(initialState);
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showAddToken, setShowAddToken] = useState(false);
