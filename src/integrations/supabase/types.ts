@@ -617,6 +617,33 @@ export type Database = {
         }
         Relationships: []
       }
+      provider_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          nickname: string | null
+          provider: string
+          token: string
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nickname?: string | null
+          provider: string
+          token: string
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nickname?: string | null
+          provider?: string
+          token?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
       servidores: {
         Row: {
           api_key: string

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,8 @@ import AlertsManagement from './AlertsManagement';
 import ServerManagement from './ServerManagement';
 import SimpleMonitoringGuide from './SimpleMonitoringGuide';
 import AlertTestModal from './AlertTestModal';
+import ProviderTokenManager from "@/components/admin/ProviderTokenManager";
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 const AdminDashboard = () => {
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
@@ -73,6 +74,18 @@ const AdminDashboard = () => {
           <SimpleMonitoringGuide />
         </TabsContent>
       </Tabs>
+
+      {/* Novo bloco de atalho para tokens */}
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle>
+            Tokens de Provedores Cloud
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ProviderTokenManager />
+        </CardContent>
+      </Card>
 
       <AlertTestModal 
         isOpen={isTestModalOpen} 
