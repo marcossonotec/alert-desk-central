@@ -37,6 +37,9 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
 
   const { providerTokens, fetchingTokens, refetch } = useProviderTokens(formData.provedor, true);
 
+  // Novo: seleciona token automaticamente ao adicionar
+  const [autoSelectedTokenId, setAutoSelectedTokenId] = useState<string | null>(null);
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -46,17 +49,24 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
   const handleProviderChange = (value: string) => {
     setFormData({ ...formData, provedor: value, provider_token_id: "" });
     setShowAddToken(false);
+    setAutoSelectedTokenId(null);
   };
 
   const handleTokenSelect = (id: string) => {
     setFormData({ ...formData, provider_token_id: id });
+    setAutoSelectedTokenId(null);
   };
 
   const handleNewToken = () => setShowAddToken(true);
 
-  const handleTokenAdded = async () => {
+  const handleTokenAdded = async (newId?: string) => {
     setShowAddToken(false);
     await refetch();
+    // Usar o novo token automaticamente
+    if (newId) {
+      setFormData(prev => ({ ...prev, provider_token_id: newId }));
+      setAutoSelectedTokenId(newId);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,6 +82,7 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
           description: "Você precisa estar logado para adicionar servidores.",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
@@ -91,13 +102,14 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
 
       if (error) throw error;
 
-      onAddServer(data);
+      onAddServer(data); // Isso chama a atualização no Dashboard
       toast({
         title: "Servidor adicionado com sucesso!",
         description: `${formData.nome} está sendo monitorado.`,
       });
 
       setFormData(initialState);
+      setAutoSelectedTokenId(null);
       onCancel();
     } catch (error: any) {
       toast({
@@ -123,6 +135,7 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
         onTokenSelect={handleTokenSelect}
         onNewToken={handleNewToken}
         onTokenAdded={handleTokenAdded}
+        autoSelectedTokenId={autoSelectedTokenId}
       />
       <div className="flex justify-end space-x-4">
         <Button type="button" variant="outline" onClick={onCancel} className="border-border hover:bg-accent">

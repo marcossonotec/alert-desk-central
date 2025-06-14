@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface AddProviderTokenInlineProps {
   provider: string;
-  onSuccess: () => void;
+  onSuccess: (newTokenId?: string) => void;
 }
 
 const AddProviderTokenInline: React.FC<AddProviderTokenInlineProps> = ({ provider, onSuccess }) => {
@@ -32,12 +32,12 @@ const AddProviderTokenInline: React.FC<AddProviderTokenInlineProps> = ({ provide
       return;
     }
 
-    const { error } = await supabase.from("provider_tokens").insert({
+    const { data, error } = await supabase.from("provider_tokens").insert({
       provider,
       token,
       nickname,
       usuario_id: user.id
-    });
+    }).select('id').single();
 
     if (error) {
       toast({
@@ -49,7 +49,8 @@ const AddProviderTokenInline: React.FC<AddProviderTokenInlineProps> = ({ provide
       toast({ title: "Token salvo com sucesso!" });
       setToken("");
       setNickname("");
-      onSuccess();
+      // Retorna o id para seleção automática
+      onSuccess(data?.id);
     }
     setLoading(false);
   };
@@ -61,13 +62,14 @@ const AddProviderTokenInline: React.FC<AddProviderTokenInlineProps> = ({ provide
         value={token}
         onChange={e => setToken(e.target.value)}
         required
+        autoFocus
       />
       <Input
         placeholder="Apelido do token (opcional)"
         value={nickname}
         onChange={e => setNickname(e.target.value)}
       />
-      <Button type="submit" disabled={loading || !token}>
+      <Button type="submit" disabled={loading || !token} className="w-full">
         {loading ? "Salvando..." : "Cadastrar Token"}
       </Button>
     </form>
