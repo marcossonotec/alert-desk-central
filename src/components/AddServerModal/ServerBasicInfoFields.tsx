@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -43,6 +42,7 @@ const ServerBasicInfoFields: React.FC<ServerBasicInfoFieldsProps> = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Nome do Servidor */}
           <div className="space-y-2">
             <Label htmlFor="nome" className="text-foreground">Nome do Servidor</Label>
             <Input
@@ -55,6 +55,7 @@ const ServerBasicInfoFields: React.FC<ServerBasicInfoFieldsProps> = ({
               required
             />
           </div>
+          {/* IP do Servidor */}
           <div className="space-y-2">
             <Label htmlFor="ip" className="text-foreground">IP do Servidor</Label>
             <div className="relative">
@@ -72,6 +73,7 @@ const ServerBasicInfoFields: React.FC<ServerBasicInfoFieldsProps> = ({
           </div>
         </div>
 
+        {/* Provedor */}
         <div className="space-y-2">
           <Label className="text-foreground">Provedor</Label>
           <div className="relative">
@@ -91,6 +93,7 @@ const ServerBasicInfoFields: React.FC<ServerBasicInfoFieldsProps> = ({
           </div>
         </div>
 
+        {/* Token do Provedor */}
         {formData.provedor !== "outros" && (
           <div className="space-y-2">
             <Label className="text-foreground">Token de API do provedor</Label>
@@ -111,9 +114,14 @@ const ServerBasicInfoFields: React.FC<ServerBasicInfoFieldsProps> = ({
                     </option>
                   ))}
                 </select>
-                <Button type="button" size="sm" variant="secondary" onClick={onNewToken}>
-                  Cadastrar novo token
-                </Button>
+                <button
+                  type="button"
+                  className="text-xs text-primary underline w-fit pl-1 hover:opacity-80"
+                  onClick={onNewToken}
+                  style={{ background: "none", border: "none", padding: 0 }}
+                >
+                  Não tem token? Cadastre aqui
+                </button>
               </div>
             ) : (
               <AddProviderTokenInline
@@ -129,4 +137,3 @@ const ServerBasicInfoFields: React.FC<ServerBasicInfoFieldsProps> = ({
 };
 
 export default ServerBasicInfoFields;
-
