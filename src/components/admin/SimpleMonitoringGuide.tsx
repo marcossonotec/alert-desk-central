@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,22 @@ const SimpleMonitoringGuide = () => {
   const [selectedServer, setSelectedServer] = useState('');
   const [apiKey, setApiKey] = useState('');
   const { toast } = useToast();
+
+  // Mensagem de reforço
+  const infoBox = (
+    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-400 dark:border-blue-600 px-5 py-4 rounded-lg mb-4">
+      <strong>Importante:</strong> Para <span className="text-primary font-semibold">enviar dados reais do seu servidor</span>, você precisa:
+      <ol className="list-decimal ml-5 my-2 space-y-1 text-sm">
+        <li>Configurar um servidor e, ao cadastrá-lo, <span className="font-bold text-primary">copiar a API Key exclusiva gerada</span> e o <span className="font-bold">ID do Servidor</span> (ambos estão na plataforma).</li>
+        <li>Instalar e agendar o script abaixo <b>no seu servidor real</b>.</li>
+        <li>Não serão aceitos dados simulados. O monitoramento só funciona se o agente enviar métricas genuínas usando sua API Key.</li>
+      </ol>
+      <span className="text-xs text-muted-foreground">Atenção: Sem a API Key correta, seus dados não serão recebidos!</span>
+    </div>
+  );
+
+  // Adiciona aviso se os campos obrigatórios não estiverem preenchidos
+  const shouldWarn = !selectedServer || !apiKey;
 
   const bashScript = `#!/bin/bash
 
@@ -143,7 +158,7 @@ def collect_metrics():
         print(f"Erro na coleta de métricas: {e}")
 
 if __name__ == "__main__":
-    collect_metrics()
+    collect_metrics();
 `;
 
   const copyToClipboard = (text: string, type: string) => {
@@ -177,10 +192,11 @@ if __name__ == "__main__":
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Code className="h-5 w-5" />
-            Monitoramento Simplificado para VPS
+            Guia de Monitoramento Real para VPS
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {infoBox}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="servidor">ID do Servidor</Label>
@@ -201,15 +217,18 @@ if __name__ == "__main__":
               />
             </div>
           </div>
-          
+          {shouldWarn && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/10 text-yellow-700 dark:text-yellow-400 rounded px-4 py-2 mt-2 text-xs mb-2">
+              Preencha o <strong>ID do Servidor</strong> e a <strong>API Key</strong> antes de copiar ou baixar o script.
+            </div>
+          )}
           <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
             <h4 className="font-medium mb-2">Como usar:</h4>
             <ol className="list-decimal list-inside space-y-1 text-sm">
-              <li>Configure um servidor na plataforma e copie o ID e API Key</li>
-              <li>Escolha entre o script Bash ou Python abaixo</li>
-              <li>Baixe o script e instale em sua VPS</li>
-              <li>Configure um cron job para executar a cada 5 minutos</li>
-              <li>As métricas aparecerão automaticamente no dashboard</li>
+              <li>Copie o <b>ID do Servidor</b> e a <b>API Key</b> gerados ao cadastrar seu servidor.</li>
+              <li>Personalize o script Bash ou Python abaixo com esses valores.</li>
+              <li>Instale e agende como <code>cron</code> na sua VPS.</li>
+              <li>As métricas reais aparecerão automaticamente no dashboard.</li>
             </ol>
           </div>
         </CardContent>
@@ -237,7 +256,21 @@ if __name__ == "__main__":
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => copyToClipboard(bashScript, 'Bash')}
+                onClick={() => {
+                  if (shouldWarn) {
+                    toast({
+                      title: "Preencha dados!",
+                      description: "ID de servidor e API Key obrigatórios para um script funcional.",
+                      variant: "destructive"
+                    });
+                  } else {
+                    navigator.clipboard.writeText(bashScript);
+                    toast({
+                      title: "Copiado!",
+                      description: `Script Bash copiado para a área de transferência.`,
+                    });
+                  }
+                }}
                 className="flex items-center gap-2"
               >
                 <Copy className="h-4 w-4" />
@@ -246,7 +279,30 @@ if __name__ == "__main__":
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => downloadScript(bashScript, 'monitor.sh')}
+                onClick={() => {
+                  if (shouldWarn) {
+                    toast({
+                      title: "Preencha dados!",
+                      description: "ID de servidor e API Key obrigatórios para um script funcional.",
+                      variant: "destructive"
+                    });
+                  } else {
+                    const blob = new Blob([bashScript], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'monitor.sh';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    toast({
+                      title: "Download iniciado!",
+                      description: `Script monitor.sh baixado com sucesso.`,
+                    });
+                  }
+                }}
                 className="flex items-center gap-2"
               >
                 <Download className="h-4 w-4" />
@@ -280,7 +336,21 @@ if __name__ == "__main__":
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => copyToClipboard(pythonScript, 'Python')}
+                onClick={() => {
+                  if (shouldWarn) {
+                    toast({
+                      title: "Preencha dados!",
+                      description: "ID de servidor e API Key obrigatórios para um script funcional.",
+                      variant: "destructive"
+                    });
+                  } else {
+                    navigator.clipboard.writeText(pythonScript);
+                    toast({
+                      title: "Copiado!",
+                      description: `Script Python copiado para a área de transferência.`,
+                    });
+                  }
+                }}
                 className="flex items-center gap-2"
               >
                 <Copy className="h-4 w-4" />
@@ -289,7 +359,30 @@ if __name__ == "__main__":
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => downloadScript(pythonScript, 'monitor.py')}
+                onClick={() => {
+                  if (shouldWarn) {
+                    toast({
+                      title: "Preencha dados!",
+                      description: "ID de servidor e API Key obrigatórios para um script funcional.",
+                      variant: "destructive"
+                    });
+                  } else {
+                    const blob = new Blob([pythonScript], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'monitor.py';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    toast({
+                      title: "Download iniciado!",
+                      description: `Script monitor.py baixado com sucesso.`,
+                    });
+                  }
+                }}
                 className="flex items-center gap-2"
               >
                 <Download className="h-4 w-4" />
