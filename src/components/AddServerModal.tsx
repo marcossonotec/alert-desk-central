@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Server, Globe, Key, Webhook, Cloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import AddProviderTokenInline from "./AddProviderTokenInline";
 
 interface AddServerModalProps {
   isOpen: boolean;
@@ -22,7 +22,8 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
     ip: '',
     webhook_url: '',
     api_key: '',
-    provedor: 'hetzner'
+    provedor: 'hetzner',
+    provider_token_id: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -36,11 +37,58 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
     { value: 'outros', label: 'Outros' },
   ];
 
+  const [providerTokens, setProviderTokens] = useState<any[]>([]);
+  const [showAddToken, setShowAddToken] = useState(false);
+  const [fetchingTokens, setFetchingTokens] = useState(false);
+
+  // Busca tokens sempre que mudar provedor ou abrir modal
+  React.useEffect(() => {
+    if (!isOpen) return;
+    async function fetchTokens() {
+      setFetchingTokens(true);
+      const { data, error } = await supabase
+        .from("provider_tokens")
+        .select("*")
+        .eq("provider", formData.provedor)
+        .order("created_at", { ascending: false });
+      setProviderTokens(data || []);
+      setFetchingTokens(false);
+    }
+    fetchTokens();
+    // eslint-disable-next-line
+  }, [formData.provedor, isOpen]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handleProviderChange = (value: string) => {
+    setFormData({ ...formData, provedor: value, provider_token_id: '' });
+    setShowAddToken(false);
+  };
+
+  const handleTokenSelect = (id: string) => {
+    setFormData({ ...formData, provider_token_id: id });
+  };
+
+  const handleNewToken = () => {
+    setShowAddToken(true);
+  };
+
+  const handleTokenAdded = async () => {
+    setShowAddToken(false);
+    // Recarrega tokens
+    setFetchingTokens(true);
+    const { data } = await supabase
+      .from("provider_tokens")
+      .select("*")
+      .eq("provider", formData.provedor)
+      .order("created_at", { ascending: false });
+    setProviderTokens(data || []);
+    setFetchingTokens(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,7 +97,7 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         toast({
           title: "Erro de autenticação",
@@ -68,6 +116,7 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
           webhook_url: formData.webhook_url,
           api_key: formData.api_key,
           provedor: formData.provedor,
+          provider_token_id: formData.provider_token_id || null,
           status: 'ativo'
         })
         .select()
@@ -82,16 +131,16 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
         title: "Servidor adicionado com sucesso!",
         description: `${formData.nome} está sendo monitorado.`,
       });
-      
-      // Reset form
+
       setFormData({
         nome: '',
         ip: '',
         webhook_url: '',
         api_key: '',
-        provedor: 'hetzner'
+        provedor: 'hetzner',
+        provider_token_id: ''
       });
-      
+
       onClose();
     } catch (error: any) {
       console.error('Erro ao adicionar servidor:', error);
@@ -157,12 +206,13 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
                   </div>
                 </div>
               </div>
-              
+
+              {/* NOVO BLOCO PARA SELEÇÃO DE TOKEN */}
               <div className="space-y-2">
-                <Label htmlFor="provedor" className="text-foreground">Provedor</Label>
+                <Label className="text-foreground">Provedor</Label>
                 <div className="relative">
                   <Cloud className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-                  <Select value={formData.provedor} onValueChange={(value) => setFormData({ ...formData, provedor: value })}>
+                  <Select value={formData.provedor} onValueChange={handleProviderChange}>
                     <SelectTrigger className="bg-background border-border pl-10">
                       <SelectValue placeholder="Selecione o provedor" />
                     </SelectTrigger>
@@ -176,6 +226,41 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
                   </Select>
                 </div>
               </div>
+
+              {/* Se o provedor for suportado (exceto outros), mostra seleção de token */}
+              {formData.provedor !== "outros" && (
+                <div className="space-y-2">
+                  <Label className="text-foreground">Token de API do provedor</Label>
+                  {fetchingTokens ? (
+                    <div className="text-sm text-muted-foreground">Carregando tokens...</div>
+                  ) : providerTokens.length > 0 && !showAddToken ? (
+                    <div className="flex flex-col gap-2">
+                      <select
+                        value={formData.provider_token_id}
+                        onChange={e => handleTokenSelect(e.target.value)}
+                        className="border rounded px-3 py-2"
+                        required
+                      >
+                        <option value="" disabled>Selecione um token</option>
+                        {providerTokens.map(token => (
+                          <option key={token.id} value={token.id}>
+                            {token.nickname || token.token.slice(0,5)+"..."+token.token.slice(-4)}
+                          </option>
+                        ))}
+                      </select>
+                      <Button type="button" size="sm" variant="secondary" onClick={handleNewToken}>
+                        Cadastrar novo token
+                      </Button>
+                    </div>
+                  ) : (
+                    <AddProviderTokenInline
+                      provider={formData.provedor}
+                      onSuccess={handleTokenAdded}
+                    />
+                  )}
+                </div>
+              )}
+              
             </CardContent>
           </Card>
 
