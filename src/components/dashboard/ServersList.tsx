@@ -3,13 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Server, Plus, Settings, Activity, Wifi, WifiOff } from 'lucide-react';
+import { Server, Plus, Settings, Activity, Wifi, WifiOff, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import AddServerModal from '@/components/AddServerModal';
 import ServerConfigModal from '@/components/ServerConfigModal';
 import ServerMetricsModal from '@/components/ServerMetricsModal';
+import AlertConfigModal from '@/components/AlertConfigModal';
 import RealDataBadge from '@/components/RealDataBadge';
 
 interface Server {
@@ -23,33 +24,65 @@ interface Server {
   webhook_url?: string;
 }
 
-const ServersList: React.FC = () => {
+interface ServersListProps {
+  servers: Server[];
+  onUpdate: () => void;
+  onAddServer: () => void;
+}
+
+const ServersList: React.FC<ServersListProps> = ({ servers: propServers, onUpdate, onAddServer }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [servers, setServers] = useState<Server[]>([]);
+  const [servers, setServers] = useState<Server[]>(propServers || []);
+  const [metrics, setMetrics] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
+  const [showAlertModal, setShowAlertModal] = useState(false);
 
-  const fetchServers = async () => {
+  // Sincronizar com props quando mudarem
+  useEffect(() => {
+    if (propServers) {
+      setServers(propServers);
+    }
+  }, [propServers]);
+
+  const fetchData = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('servidores')
-        .select('*')
-        .eq('usuario_id', user.id)
-        .order('data_criacao', { ascending: false });
+      
+      // Buscar servidores se não foram passados via props
+      if (!propServers || propServers.length === 0) {
+        const { data: serversData, error: serversError } = await supabase
+          .from('servidores')
+          .select('*')
+          .eq('usuario_id', user.id)
+          .order('data_criacao', { ascending: false });
 
-      if (error) throw error;
-      setServers(data || []);
+        if (serversError) throw serversError;
+        setServers(serversData || []);
+      }
+
+      // Buscar métricas para todos os servidores
+      const serverIds = (propServers || servers).map(s => s.id);
+      if (serverIds.length > 0) {
+        const { data: metricsData, error: metricsError } = await supabase
+          .from('metricas')
+          .select('*')
+          .in('servidor_id', serverIds)
+          .order('timestamp', { ascending: false });
+
+        if (metricsError) throw metricsError;
+        setMetrics(metricsData || []);
+      }
     } catch (error: any) {
-      console.error('Erro ao buscar servidores:', error);
+      console.error('Erro ao buscar dados:', error);
       toast({
-        title: "Erro ao carregar servidores",
+        title: "Erro ao carregar dados",
         description: error.message,
         variant: "destructive"
       });
@@ -59,13 +92,20 @@ const ServersList: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchServers();
-  }, [user]);
+    fetchData();
+  }, [user, propServers]);
+
+  const getLatestMetricForServer = (serverId: string) => {
+    return metrics
+      .filter(m => m.servidor_id === serverId)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+  };
 
   const handleAddServer = (serverData: Server) => {
     setServers(prev => [serverData, ...prev]);
     setShowAddModal(false);
     toast({ title: "Servidor adicionado com sucesso!" });
+    if (onUpdate) onUpdate();
   };
 
   const handleConfigServer = (server: Server) => {
@@ -78,10 +118,16 @@ const ServersList: React.FC = () => {
     setShowMetricsModal(true);
   };
 
+  const handleViewAlerts = (server: Server) => {
+    setSelectedServer(server);
+    setShowAlertModal(true);
+  };
+
   const handleUpdateServer = () => {
-    fetchServers();
+    fetchData();
     setShowConfigModal(false);
     setSelectedServer(null);
+    if (onUpdate) onUpdate();
   };
 
   const getStatusColor = (status: string) => {
@@ -124,7 +170,7 @@ const ServersList: React.FC = () => {
               <Server className="h-5 w-5" />
               <span>Meus Servidores</span>
             </CardTitle>
-            <Button onClick={() => setShowAddModal(true)} size="sm">
+            <Button onClick={onAddServer || (() => setShowAddModal(true))} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Servidor
             </Button>
@@ -138,63 +184,79 @@ const ServersList: React.FC = () => {
               <p className="text-muted-foreground mb-4">
                 Adicione seu primeiro servidor para começar o monitoramento
               </p>
-              <Button onClick={() => setShowAddModal(true)}>
+              <Button onClick={onAddServer || (() => setShowAddModal(true))}>
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Primeiro Servidor
               </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {servers.map((server) => (
-                <Card key={server.id} className="relative">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className={`h-2 w-2 rounded-full ${getStatusColor(server.status || 'ativo')}`} />
-                        <h3 className="font-semibold text-sm">{server.nome}</h3>
+              {servers.map((server) => {
+                const latestMetric = getLatestMetricForServer(server.id);
+                return (
+                  <Card key={server.id} className="relative">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className={`h-2 w-2 rounded-full ${getStatusColor(server.status || 'ativo')}`} />
+                          <h3 className="font-semibold text-sm">{server.nome}</h3>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {getProviderIcon(server)}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {getProviderIcon(server)}
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">IP:</span>
+                          <span className="font-mono">{server.ip}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Provedor:</span>
+                          <span className="capitalize">{server.provedor || 'outros'}</span>
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">IP:</span>
-                        <span className="font-mono">{server.ip}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Provedor:</span>
-                        <span className="capitalize">{server.provedor || 'outros'}</span>
-                      </div>
-                    </div>
 
-                    <div className="flex justify-center">
-                      <RealDataBadge hasRealData={!!server.provider_token_id && server.provedor !== 'outros'} />
-                    </div>
+                      <div className="flex justify-center">
+                        <RealDataBadge metricas={latestMetric} />
+                      </div>
 
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewMetrics(server)}
-                        className="flex-1"
-                      >
-                        <Activity className="h-4 w-4 mr-1" />
-                        Métricas
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleConfigServer(server)}
-                      >
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewMetrics(server)}
+                          className="flex-1"
+                        >
+                          <Activity className="h-4 w-4 mr-1" />
+                          Métricas
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewAlerts(server)}
+                          className="flex-1"
+                        >
+                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          Alertas
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleConfigServer(server)}
+                          className="flex-1"
+                        >
+                          <Settings className="h-4 w-4 mr-1" />
+                          Configurar
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -219,12 +281,23 @@ const ServersList: React.FC = () => {
           />
 
           <ServerMetricsModal
-            server={selectedServer}
+            serverId={selectedServer.id}
+            serverName={selectedServer.nome}
             isOpen={showMetricsModal}
             onClose={() => {
               setShowMetricsModal(false);
               setSelectedServer(null);
             }}
+          />
+
+          <AlertConfigModal
+            server={{ id: selectedServer.id, name: selectedServer.nome }}
+            isOpen={showAlertModal}
+            onClose={() => {
+              setShowAlertModal(false);
+              setSelectedServer(null);
+            }}
+            onUpdate={handleUpdateServer}
           />
         </>
       )}
