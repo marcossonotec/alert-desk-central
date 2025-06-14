@@ -9,6 +9,8 @@ import { Server, Globe, Key, Webhook, Cloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import AddProviderTokenInline from "./AddProviderTokenInline";
+import ServerBasicInfoFields from "./AddServerModal/ServerBasicInfoFields";
+import ServerApiKeyField from "./AddServerModal/ServerApiKeyField";
 
 interface AddServerModalProps {
   isOpen: boolean;
@@ -167,128 +169,23 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Informações Básicas */}
-          <Card className="bg-card/50 border-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center space-x-2">
-                <Server className="h-5 w-5 text-primary" />
-                <span>Informações Básicas</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nome" className="text-foreground">Nome do Servidor</Label>
-                  <Input
-                    id="nome"
-                    name="nome"
-                    placeholder="Ex: Servidor Web 01"
-                    value={formData.nome}
-                    onChange={handleInputChange}
-                    className="bg-background border-border"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ip" className="text-foreground">IP do Servidor</Label>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="ip"
-                      name="ip"
-                      placeholder="192.168.1.100"
-                      value={formData.ip}
-                      onChange={handleInputChange}
-                      className="bg-background border-border pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
+          <ServerBasicInfoFields
+            formData={formData}
+            provedores={provedores}
+            providerTokens={providerTokens}
+            fetchingTokens={fetchingTokens}
+            showAddToken={showAddToken}
+            onInputChange={handleInputChange}
+            onProviderChange={handleProviderChange}
+            onTokenSelect={handleTokenSelect}
+            onNewToken={handleNewToken}
+            onTokenAdded={handleTokenAdded}
+          />
 
-              {/* NOVO BLOCO PARA SELEÇÃO DE TOKEN */}
-              <div className="space-y-2">
-                <Label className="text-foreground">Provedor</Label>
-                <div className="relative">
-                  <Cloud className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-                  <Select value={formData.provedor} onValueChange={handleProviderChange}>
-                    <SelectTrigger className="bg-background border-border pl-10">
-                      <SelectValue placeholder="Selecione o provedor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {provedores.map((provedor) => (
-                        <SelectItem key={provedor.value} value={provedor.value}>
-                          {provedor.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Se o provedor for suportado (exceto outros), mostra seleção de token */}
-              {formData.provedor !== "outros" && (
-                <div className="space-y-2">
-                  <Label className="text-foreground">Token de API do provedor</Label>
-                  {fetchingTokens ? (
-                    <div className="text-sm text-muted-foreground">Carregando tokens...</div>
-                  ) : providerTokens.length > 0 && !showAddToken ? (
-                    <div className="flex flex-col gap-2">
-                      <select
-                        value={formData.provider_token_id}
-                        onChange={e => handleTokenSelect(e.target.value)}
-                        className="border rounded px-3 py-2"
-                        required
-                      >
-                        <option value="" disabled>Selecione um token</option>
-                        {providerTokens.map(token => (
-                          <option key={token.id} value={token.id}>
-                            {token.nickname || token.token.slice(0,5)+"..."+token.token.slice(-4)}
-                          </option>
-                        ))}
-                      </select>
-                      <Button type="button" size="sm" variant="secondary" onClick={handleNewToken}>
-                        Cadastrar novo token
-                      </Button>
-                    </div>
-                  ) : (
-                    <AddProviderTokenInline
-                      provider={formData.provedor}
-                      onSuccess={handleTokenAdded}
-                    />
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Apenas API Key agora */}
-          <Card className="bg-card/50 border-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center space-x-2">
-                <Key className="h-5 w-5 text-purple-500" />
-                <span>API Key</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="api_key" className="text-foreground">API Key</Label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="api_key"
-                    name="api_key"
-                    type="password"
-                    placeholder="Sua API key para autenticação"
-                    value={formData.api_key}
-                    onChange={handleInputChange}
-                    className="bg-background border-border pl-10"
-                    required
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ServerApiKeyField
+            apiKeyValue={formData.api_key}
+            onInputChange={handleInputChange}
+          />
 
           {/* Botões de Ação */}
           <div className="flex justify-end space-x-4">
