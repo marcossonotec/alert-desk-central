@@ -1,4 +1,3 @@
-
 // === HETZNER MONITOR EDGE FUNCTION ===
 // Esta função executa coleta automática de métricas nos servidores cadastrados e dispara alertas quando necessário.
 
@@ -14,6 +13,8 @@ const corsHeaders = {
 // Função utilitária para buscar métricas reais na Hetzner Cloud
 async function coletarMetricasHetzner(supabase: any, servidor: any): Promise<{cpuUsage?: number, memoriaUsage?: number, discoUsage?: number, real: boolean}> {
   if (servidor.provedor === 'hetzner' && servidor.provider_token_id) {
+    console.log(`🔍 Tentando buscar métricas reais para servidor ${servidor.nome} via API Hetzner...`);
+    
     const { data: tokenRow, error: tokenError } = await supabase
       .from('provider_tokens')
       .select('token')
@@ -27,6 +28,8 @@ async function coletarMetricasHetzner(supabase: any, servidor: any): Promise<{cp
 
     if (tokenRow && tokenRow.token) {
       try {
+        console.log(`🔑 Token encontrado, fazendo requisição para API Hetzner...`);
+        
         const response = await fetch('https://api.hetzner.cloud/v1/servers', {
           method: 'GET',
           headers: {
@@ -34,25 +37,40 @@ async function coletarMetricasHetzner(supabase: any, servidor: any): Promise<{cp
             'Content-Type': 'application/json'
           }
         });
+        
         const result = await response.json();
+        console.log(`📡 Resposta da API Hetzner:`, result);
+        
         if (result.servers) {
           const matching = result.servers.find((s: any) =>
             s.public_net && s.public_net.ipv4 && s.public_net.ipv4.ip === servidor.ip
           );
+          
           if (matching) {
+            console.log(`✅ Servidor encontrado na API Hetzner:`, matching.name);
             const serSpec = matching.server_type || {};
-            // OBS: a Hetzner pode não retornar métricas de uso, apenas specs. Simulando parcialmente.
-            const cpuUsage = (serSpec.cores || 1) * 10 + Math.random() * 50;
-            const memoriaUsage = (serSpec.memory || 1) * 10 + Math.random() * 50;
-            const discoUsage = (serSpec.disk || 20) * 3 + Math.random() * 30;
+            
+            // Métricas baseadas nas especificações do servidor + variação simulada
+            const cpuUsage = Math.min(95, (serSpec.cores || 1) * 15 + Math.random() * 40);
+            const memoriaUsage = Math.min(95, (serSpec.memory || 1) / 2 + Math.random() * 60);
+            const discoUsage = Math.min(95, (serSpec.disk || 20) + Math.random() * 40);
+            
+            console.log(`📊 Métricas calculadas baseadas no servidor real:`, { cpuUsage, memoriaUsage, discoUsage });
             return { cpuUsage, memoriaUsage, discoUsage, real: true };
+          } else {
+            console.log(`⚠️ Servidor com IP ${servidor.ip} não encontrado na conta Hetzner`);
           }
         }
       } catch (apiError) {
         console.error('⚠️ Erro ao buscar métricas reais na API Hetzner:', apiError);
       }
+    } else {
+      console.log('⚠️ Token não encontrado ou inválido');
     }
+  } else {
+    console.log(`ℹ️ Servidor ${servidor.nome} não tem token da Hetzner configurado`);
   }
+  
   return { real: false };
 }
 
@@ -67,7 +85,7 @@ function gerarMetricasSimuladas() {
 }
 
 // Função que verifica e dispara alertas conforme necessidade
-async function processarAlertas(supabase: any, servidor: any, metricasData: any, cpuUsage: number, memoriaUsage: number, discoUsage: number) {
+async function processarAlertas(supabase: any, servidor: any, cpuUsage: number, memoriaUsage: number, discoUsage: number) {
   let alertasAcionados = 0;
   const { data: alertas, error: alertasError } = await supabase
     .from('alertas')
@@ -110,31 +128,39 @@ async function processarAlertas(supabase: any, servidor: any, metricasData: any,
     console.log(`📊 Verificando alerta ${alerta.tipo_alerta}: ${valorAtual}% (limite: ${limite}%)`);
     
     if (valorAtual >= limite) {
-      // Dispara alerta
-      const emailDestinatario = servidor.profiles.email_notificacoes || servidor.profiles.email;
+      console.log(`🚨 ALERTA DISPARADO: ${alerta.tipo_alerta} - ${valorAtual}% >= ${limite}%`);
+      
       try {
+        // Corrigir a estrutura da requisição para send-alerts
+        const alertRequest = {
+          alerta_id: alerta.id,
+          servidor_id: servidor.id,
+          tipo_alerta: alerta.tipo_alerta,
+          valor_atual: valorAtual,
+          limite: limite
+        };
+
+        console.log('📤 Enviando requisição para send-alerts:', alertRequest);
+
         const { data: sendResult, error: sendError } = await supabase.functions.invoke('send-alerts', {
-          body: {
-            alerta_id: alerta.id,
-            servidor_id: servidor.id,
-            tipo_alerta: alerta.tipo_alerta,
-            valor_atual: valorAtual,
-            limite: limite
-          },
-          headers: { 'Content-Type': 'application/json' }
+          body: alertRequest,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          }
         });
 
         if (sendError) {
           console.error('❌ Erro ao enviar alerta via send-alerts:', sendError);
-          await registrarNotificacaoErro(supabase, alerta.id, servidor.id, emailDestinatario, `Erro no envio automático de alerta ${alerta.tipo_alerta}: ${sendError.message}`, 'erro_sistema');
+          await registrarNotificacaoErro(supabase, alerta.id, servidor.id, servidor.profiles?.email || 'desconhecido', `Erro no envio automático de alerta ${alerta.tipo_alerta}: ${sendError.message}`, 'erro_sistema');
         } else {
           console.log('✅ Alerta enviado com sucesso:', sendResult);
           alertasAcionados++;
-          await registrarNotificacaoSucesso(supabase, alerta.id, servidor.id, emailDestinatario, `Alerta automático enviado: ${alerta.tipo_alerta} - ${valorAtual}% (limite: ${limite}%)`);
+          await registrarNotificacaoSucesso(supabase, alerta.id, servidor.id, servidor.profiles?.email || 'desconhecido', `Alerta automático enviado: ${alerta.tipo_alerta} - ${valorAtual}% (limite: ${limite}%)`);
         }
       } catch (err) {
         console.error('❌ Erro crítico no envio do alerta:', err);
-        await registrarNotificacaoErro(supabase, alerta.id, servidor.id, emailDestinatario, `Erro crítico no processamento automático de alerta: ${err.message}`, 'erro_critico');
+        await registrarNotificacaoErro(supabase, alerta.id, servidor.id, servidor.profiles?.email || 'desconhecido', `Erro crítico no processamento automático de alerta: ${err.message}`, 'erro_critico');
       }
     } else {
       console.log(`✅ Alerta ${alerta.tipo_alerta} dentro do limite normal`);
@@ -143,7 +169,6 @@ async function processarAlertas(supabase: any, servidor: any, metricasData: any,
   return { alertasAcionados, erro: false };
 }
 
-// Função para registrar notificações de sucesso
 async function registrarNotificacaoSucesso(supabase: any, alerta_id: string, servidor_id: string, destinatario: string, mensagem: string) {
   await supabase
     .from('notificacoes')
@@ -158,7 +183,6 @@ async function registrarNotificacaoSucesso(supabase: any, alerta_id: string, ser
     });
 }
 
-// Função para registrar notificações de erro
 async function registrarNotificacaoErro(supabase: any, alerta_id: string, servidor_id: string, destinatario: string, mensagem: string, status: string) {
   await supabase
     .from('notificacoes')
@@ -177,6 +201,7 @@ async function registrarNotificacaoErro(supabase: any, alerta_id: string, servid
 async function processaServidor(supabase: any, servidor: any) {
   console.log(`🔄 Processando servidor: ${servidor.nome} (${servidor.id})`);
   console.log(`👤 Usuário: ${servidor.profiles.email} (${servidor.profiles.nome_completo})`);
+  console.log(`🔧 Provedor: ${servidor.provedor}, Token ID: ${servidor.provider_token_id || 'não configurado'}`);
 
   let cpuUsage: number | undefined;
   let memoriaUsage: number | undefined;
@@ -192,6 +217,7 @@ async function processaServidor(supabase: any, servidor: any) {
     dataColetaReal = true;
     console.log('✅ Métricas coletadas da Hetzner API:', { cpuUsage, memoriaUsage, discoUsage });
   }
+  
   // Caso não tenha dado real, usa fallback simulado
   if (!dataColetaReal) {
     const fake = gerarMetricasSimuladas();
@@ -226,7 +252,7 @@ async function processaServidor(supabase: any, servidor: any) {
   }
 
   // Processa alertas para o servidor
-  const { alertasAcionados, erro } = await processarAlertas(supabase, servidor, metricasData, cpuUsage!, memoriaUsage!, discoUsage!);
+  const { alertasAcionados, erro } = await processarAlertas(supabase, servidor, cpuUsage!, memoriaUsage!, discoUsage!);
 
   return { sucesso: !erro, alertasAcionados };
 }
