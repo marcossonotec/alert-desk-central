@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -10,10 +11,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Server, Globe, Cloud } from 'lucide-react';
+import { Server, Globe, Cloud, Key, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useProviderTokens } from './AddServerModal/useProviderTokens';
+import AddProviderTokenInline from './AddProviderTokenInline';
 
 interface ServerConfigModalProps {
   server: {
@@ -97,9 +99,16 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
 
   const handleNewToken = () => setShowAddToken(true);
 
-  const handleTokenAdded = async () => {
+  const handleTokenAdded = async (newTokenId?: string) => {
     setShowAddToken(false);
     await refetch();
+    if (newTokenId) {
+      setFormData({ ...formData, provider_token_id: newTokenId });
+      toast({
+        title: "Token cadastrado e selecionado",
+        description: "O novo token foi automaticamente associado ao servidor.",
+      });
+    }
   };
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -184,7 +193,7 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
             <span>Configurar Servidor</span>
           </DialogTitle>
           <DialogDescription>
-            Edite as informações básicas do servidor. (Webhooks e cadastro de tokens não suportados por este modal. Use a tela inicial para criar servidor.)
+            Configure as informações do servidor e associe tokens de API para coleta automática de métricas.
           </DialogDescription>
         </DialogHeader>
 
@@ -243,23 +252,7 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-foreground">API Key</Label>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono break-all">{server.api_key || <em>API key não encontrada</em>}</span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => {
-                      navigator.clipboard.writeText(server.api_key);
-                      toast({ title: "API Key copiada!" });
-                    }}
-                  >Copiar</Button>
-                </div>
-                <div className="text-xs text-muted-foreground">Copie a chave para uso no agente de monitoramento.</div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="status" className="text-foreground">Status</Label>
+                <Label className="text-foreground">Status</Label>
                 <select
                   id="status"
                   name="status"
@@ -274,9 +267,124 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
                   ))}
                 </select>
               </div>
-
             </CardContent>
           </Card>
+
+          {/* Seção de API Key (Agente) */}
+          <Card className="bg-card/50 border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center space-x-2 text-foreground">
+                <Key className="h-5 w-5 text-primary" />
+                <span>API Key do Agente</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="font-mono break-all text-sm bg-muted p-2 rounded">
+                  {server.api_key || <em>API key não encontrada</em>}
+                </span>
+                {server.api_key && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(server.api_key!);
+                      toast({ title: "API Key copiada!" });
+                    }}
+                  >
+                    Copiar
+                  </Button>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Esta chave deve ser configurada no agente de monitoramento para enviar dados ao sistema.
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Seção de Provider Token */}
+          {formData.provedor !== "outros" && (
+            <Card className="bg-card/50 border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center space-x-2 text-foreground">
+                  <Cloud className="h-5 w-5 text-primary" />
+                  <span>Token do Provedor ({provedores.find(p => p.value === formData.provedor)?.label})</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-sm text-muted-foreground">
+                  Para coleta automática de métricas reais da API do provedor, selecione ou cadastre um token de acesso.
+                </div>
+                
+                {fetchingTokens ? (
+                  <div className="text-center py-4">Carregando tokens...</div>
+                ) : (
+                  <>
+                    {providerTokens.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-foreground">Tokens Disponíveis</Label>
+                        <div className="space-y-2">
+                          {providerTokens.map((token) => (
+                            <label
+                              key={token.id}
+                              className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/50"
+                            >
+                              <input
+                                type="radio"
+                                name="provider_token_id"
+                                value={token.id}
+                                checked={formData.provider_token_id === token.id}
+                                onChange={() => handleTokenSelect(token.id)}
+                                className="text-primary"
+                              />
+                              <div className="flex-1">
+                                <div className="font-medium text-foreground">
+                                  {token.nickname || 'Token sem apelido'}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {token.token.slice(0, 8)}...{token.token.slice(-8)}
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {!showAddToken ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleNewToken}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Cadastrar Novo Token
+                      </Button>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-foreground">Novo Token</Label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowAddToken(false)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                        <AddProviderTokenInline
+                          provider={formData.provedor}
+                          onSuccess={handleTokenAdded}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <div className="flex justify-between gap-4 pt-4">
             <Button
