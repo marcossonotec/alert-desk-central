@@ -24,7 +24,14 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
     provider_token_id: undefined as string | undefined,
   });
 
+  console.log('AddServerForm render:', { 
+    user: user?.id, 
+    formData,
+    isLoading 
+  });
+
   const handleInputChange = (field: string, value: string) => {
+    console.log('Field change:', field, value);
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Reset token when provider changes
@@ -34,11 +41,14 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
   };
 
   const handleTokenSelect = (tokenId: string | undefined) => {
+    console.log('Token selected:', tokenId);
     setFormData(prev => ({ ...prev, provider_token_id: tokenId }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('Submitting form:', formData);
     
     if (!user) {
       toast({ title: "Usuário não autenticado", variant: "destructive" });
@@ -57,14 +67,20 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
         status: 'ativo'
       };
 
+      console.log('Inserting server data:', serverData);
+
       const { data, error } = await supabase
         .from('servidores')
         .insert(serverData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error inserting server:', error);
+        throw error;
+      }
 
+      console.log('Server created successfully:', data);
       toast({ title: "Servidor adicionado com sucesso!" });
       onAddServer(data);
     } catch (error: any) {
@@ -79,38 +95,51 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
     }
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <ServerBasicInfoFields
-        formData={formData}
-        onInputChange={handleInputChange}
-      />
+  // Render com tratamento de erro
+  try {
+    return (
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <ServerBasicInfoFields
+          formData={formData}
+          onInputChange={handleInputChange}
+        />
 
-      <ProviderTokenSelect
-        provedor={formData.provedor}
-        selectedTokenId={formData.provider_token_id}
-        onTokenSelect={handleTokenSelect}
-      />
+        <ProviderTokenSelect
+          provedor={formData.provedor}
+          selectedTokenId={formData.provider_token_id}
+          onTokenSelect={handleTokenSelect}
+        />
 
-      <div className="flex justify-end gap-3 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          className="border-border text-muted-foreground hover:text-foreground hover:bg-accent"
-        >
-          Cancelar
-        </Button>
-        <Button
-          type="submit"
-          disabled={isLoading}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground"
-        >
-          {isLoading ? 'Adicionando...' : 'Adicionar Servidor'}
+        <div className="flex justify-end gap-3 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            className="border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            {isLoading ? 'Adicionando...' : 'Adicionar Servidor'}
+          </Button>
+        </div>
+      </form>
+    );
+  } catch (error) {
+    console.error('Erro no render AddServerForm:', error);
+    return (
+      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+        <p className="text-red-800">Erro ao carregar formulário de servidor.</p>
+        <Button variant="outline" onClick={onCancel} className="mt-2">
+          Fechar
         </Button>
       </div>
-    </form>
-  );
+    );
+  }
 };
 
 export default AddServerForm;

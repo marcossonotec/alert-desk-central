@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Key, AlertCircle } from 'lucide-react';
+import { Plus, Key, AlertCircle, ExclamationTriangleIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,10 +24,19 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
 }) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { tokens, isLoading, refetch } = useProviderTokens(provedor);
+  const { tokens, isLoading, error, refetch } = useProviderTokens(provedor);
   const [showNewTokenForm, setShowNewTokenForm] = useState(false);
   const [newToken, setNewToken] = useState({ token: '', nickname: '' });
   const [saving, setSaving] = useState(false);
+
+  console.log('ProviderTokenSelect render:', { 
+    provedor, 
+    selectedTokenId, 
+    tokens: tokens?.length || 0, 
+    isLoading, 
+    error,
+    user: user?.id 
+  });
 
   const handleCreateToken = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +47,8 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
 
     setSaving(true);
     try {
+      console.log('Criando novo token para provider:', provedor);
+      
       const { data, error } = await supabase
         .from('provider_tokens')
         .insert({
@@ -49,8 +60,12 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao criar token:', error);
+        throw error;
+      }
 
+      console.log('Token criado com sucesso:', data);
       toast({ title: "Token salvo com sucesso!" });
       onTokenSelect(data.id);
       setNewToken({ token: '', nickname: '' });
@@ -73,6 +88,35 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
       <div className="text-sm text-muted-foreground">
         Para servidores "outros", a coleta será feita via agente instalado no servidor.
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="bg-card/50 border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center space-x-2 text-foreground">
+            <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
+            <span>Erro ao carregar tokens</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
+            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-red-800 dark:text-red-200">
+              <strong>Erro:</strong> {error}
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => refetch()}
+            className="w-full"
+          >
+            Tentar Novamente
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
