@@ -1,31 +1,28 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Key, AlertCircle, Check } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { useProviderTokens } from './useProviderTokens';
 
 interface ProviderTokenSelectProps {
   provedor: string;
   selectedTokenId?: string;
   onTokenSelect: (tokenId: string | undefined) => void;
+  newToken: { token: string; nickname: string };
+  onNewTokenChange: (token: { token: string; nickname: string }) => void;
 }
 
 const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
   provedor,
   selectedTokenId,
   onTokenSelect,
+  newToken,
+  onNewTokenChange,
 }) => {
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const { tokens, isLoading, error, refetch } = useProviderTokens(provedor);
-  const [newToken, setNewToken] = useState({ token: '', nickname: '' });
-  const [saving, setSaving] = useState(false);
+  const { tokens, isLoading, error } = useProviderTokens(provedor);
 
   console.log('ProviderTokenSelect render:', { 
     provedor, 
@@ -33,55 +30,8 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
     tokens: tokens?.length || 0, 
     isLoading, 
     error,
-    user: user?.id 
+    newToken
   });
-
-  const handleSaveToken = async () => {
-    if (!newToken.token.trim() || !user) {
-      toast({ title: "Token é obrigatório", variant: "destructive" });
-      return;
-    }
-
-    setSaving(true);
-    try {
-      console.log('Salvando novo token para provider:', provedor);
-      
-      const { data, error } = await supabase
-        .from('provider_tokens')
-        .insert({
-          provider: provedor,
-          token: newToken.token.trim(),
-          nickname: newToken.nickname.trim() || `Token ${provedor}`,
-          usuario_id: user.id,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Erro ao salvar token:', error);
-        throw error;
-      }
-
-      console.log('Token salvo com sucesso:', data);
-      onTokenSelect(data.id);
-      setNewToken({ token: '', nickname: '' });
-      refetch();
-      
-      toast({ 
-        title: "Token salvo com sucesso!",
-        description: "Agora você pode finalizar o cadastro do servidor."
-      });
-    } catch (error: any) {
-      console.error('Erro ao salvar token:', error);
-      toast({ 
-        title: "Erro ao salvar token", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
 
   if (provedor === 'outros') {
     return (
@@ -115,14 +65,6 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
               <strong>Erro:</strong> {error}
             </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => refetch()}
-            className="w-full"
-          >
-            Tentar Novamente
-          </Button>
         </CardContent>
       </Card>
     );
@@ -193,10 +135,10 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
               </div>
             )}
 
-            {/* Formulário para novo token */}
+            {/* Campos para novo token */}
             <div className="space-y-3">
               <div className="text-sm font-medium">
-                {tokens.length > 0 ? 'Adicionar novo token:' : 'Adicione seu token da API:'}
+                {tokens.length > 0 ? 'Usar novo token:' : 'Insira seu token da API:'}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="token">Token da API</Label>
@@ -204,7 +146,7 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
                   id="token"
                   type="password"
                   value={newToken.token}
-                  onChange={(e) => setNewToken({ ...newToken, token: e.target.value })}
+                  onChange={(e) => onNewTokenChange({ ...newToken, token: e.target.value })}
                   placeholder={`Cole aqui seu token da API ${provedor}`}
                 />
               </div>
@@ -213,18 +155,10 @@ const ProviderTokenSelect: React.FC<ProviderTokenSelectProps> = ({
                 <Input
                   id="nickname"
                   value={newToken.nickname}
-                  onChange={(e) => setNewToken({ ...newToken, nickname: e.target.value })}
+                  onChange={(e) => onNewTokenChange({ ...newToken, nickname: e.target.value })}
                   placeholder="Ex: Produção, Desenvolvimento..."
                 />
               </div>
-              <Button 
-                type="button"
-                onClick={handleSaveToken} 
-                disabled={saving || !newToken.token.trim()} 
-                className="w-full"
-              >
-                {saving ? 'Salvando...' : 'Salvar Token'}
-              </Button>
             </div>
 
             <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">

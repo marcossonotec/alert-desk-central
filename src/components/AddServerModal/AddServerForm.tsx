@@ -24,9 +24,15 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
     provider_token_id: undefined as string | undefined,
   });
 
+  const [newToken, setNewToken] = useState({
+    token: "",
+    nickname: "",
+  });
+
   console.log('AddServerForm render:', { 
     user: user?.id, 
     formData,
+    newToken,
     isLoading 
   });
 
@@ -37,18 +43,32 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
     // Reset token when provider changes
     if (field === 'provedor') {
       setFormData(prev => ({ ...prev, provider_token_id: undefined }));
+      setNewToken({ token: "", nickname: "" });
     }
   };
 
   const handleTokenSelect = (tokenId: string | undefined) => {
     console.log('Token selected:', tokenId);
     setFormData(prev => ({ ...prev, provider_token_id: tokenId }));
+    // Clear new token fields when selecting existing token
+    if (tokenId) {
+      setNewToken({ token: "", nickname: "" });
+    }
+  };
+
+  const handleNewTokenChange = (token: { token: string; nickname: string }) => {
+    console.log('New token change:', token);
+    setNewToken(token);
+    // Clear selected token when typing new token
+    if (token.token) {
+      setFormData(prev => ({ ...prev, provider_token_id: undefined }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('Submitting form:', formData);
+    console.log('Submitting form:', { formData, newToken });
     
     if (!user) {
       toast({ title: "Usuário não autenticado", variant: "destructive" });
@@ -58,11 +78,38 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
     setIsLoading(true);
     
     try {
+      let finalTokenId = formData.provider_token_id;
+
+      // Se tem novo token para salvar, salva primeiro
+      if (newToken.token.trim() && formData.provedor !== 'outros') {
+        console.log('Salvando novo token antes de criar servidor');
+        
+        const { data: tokenData, error: tokenError } = await supabase
+          .from('provider_tokens')
+          .insert({
+            provider: formData.provedor,
+            token: newToken.token.trim(),
+            nickname: newToken.nickname.trim() || `Token ${formData.provedor}`,
+            usuario_id: user.id,
+          })
+          .select()
+          .single();
+
+        if (tokenError) {
+          console.error('Erro ao salvar token:', tokenError);
+          throw new Error('Erro ao salvar token: ' + tokenError.message);
+        }
+
+        console.log('Token salvo com sucesso:', tokenData);
+        finalTokenId = tokenData.id;
+      }
+
+      // Agora cria o servidor
       const serverData = {
         nome: formData.nome,
         ip: formData.ip,
         provedor: formData.provedor,
-        provider_token_id: formData.provider_token_id || null,
+        provider_token_id: finalTokenId || null,
         usuario_id: user.id,
         status: 'ativo'
       };
@@ -81,7 +128,10 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
       }
 
       console.log('Server created successfully:', data);
-      toast({ title: "Servidor adicionado com sucesso!" });
+      toast({ 
+        title: "Servidor adicionado com sucesso!",
+        description: newToken.token.trim() ? "Token salvo e servidor criado." : "Servidor criado com token existente."
+      });
       onAddServer(data);
     } catch (error: any) {
       console.error('Erro ao adicionar servidor:', error);
@@ -108,6 +158,8 @@ const AddServerForm: React.FC<AddServerFormProps> = ({ onCancel, onAddServer }) 
           provedor={formData.provedor}
           selectedTokenId={formData.provider_token_id}
           onTokenSelect={handleTokenSelect}
+          newToken={newToken}
+          onNewTokenChange={handleNewTokenChange}
         />
 
         <div className="flex justify-end gap-3 pt-4">
