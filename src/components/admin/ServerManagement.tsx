@@ -404,9 +404,12 @@ const ServerManagement = () => {
         <ServerConfigModal
           server={{
             id: selectedServer.id,
-            name: selectedServer.nome,
+            nome: selectedServer.nome, // Corrigindo aqui (era 'name')
             ip: selectedServer.ip,
-            provedor: selectedServer.provedor
+            provedor: selectedServer.provedor,
+            webhook_url: selectedServer.webhook_url,
+            provider_token_id: selectedServer.provider_token_id,
+            status: selectedServer.status,
           }}
           isOpen={isConfigModalOpen}
           onClose={() => setIsConfigModalOpen(false)}

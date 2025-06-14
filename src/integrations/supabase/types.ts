@@ -656,7 +656,7 @@ export type Database = {
           status: string | null
           ultima_verificacao: string | null
           usuario_id: string
-          webhook_url: string
+          webhook_url: string | null
         }
         Insert: {
           data_atualizacao?: string | null
@@ -669,7 +669,7 @@ export type Database = {
           status?: string | null
           ultima_verificacao?: string | null
           usuario_id: string
-          webhook_url: string
+          webhook_url?: string | null
         }
         Update: {
           data_atualizacao?: string | null
@@ -682,7 +682,7 @@ export type Database = {
           status?: string | null
           ultima_verificacao?: string | null
           usuario_id?: string
-          webhook_url?: string
+          webhook_url?: string | null
         }
         Relationships: [
           {
