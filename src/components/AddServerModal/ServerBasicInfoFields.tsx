@@ -18,7 +18,7 @@ interface ServerBasicInfoFieldsProps {
   onProviderChange: (value: string) => void;
   onTokenSelect: (id: string) => void;
   onNewToken: () => void;
-  onTokenAdded: () => void;
+  onTokenAdded: (newId?: string) => void;
 }
 
 const ServerBasicInfoFields: React.FC<ServerBasicInfoFieldsProps> = ({
@@ -129,3 +129,4 @@ const ServerBasicInfoFields: React.FC<ServerBasicInfoFieldsProps> = ({
 };
 
 export default ServerBasicInfoFields;
+

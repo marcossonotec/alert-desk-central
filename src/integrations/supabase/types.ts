@@ -646,6 +646,7 @@ export type Database = {
       }
       servidores: {
         Row: {
+          api_key: string
           data_atualizacao: string | null
           data_criacao: string | null
           id: string
@@ -659,6 +660,7 @@ export type Database = {
           webhook_url: string | null
         }
         Insert: {
+          api_key?: string
           data_atualizacao?: string | null
           data_criacao?: string | null
           id?: string
@@ -672,6 +674,7 @@ export type Database = {
           webhook_url?: string | null
         }
         Update: {
+          api_key?: string
           data_atualizacao?: string | null
           data_criacao?: string | null
           id?: string

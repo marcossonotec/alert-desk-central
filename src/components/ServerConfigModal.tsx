@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -25,6 +24,7 @@ interface ServerConfigModalProps {
     webhook_url?: string;
     provider_token_id?: string;
     status?: string;
+    api_key?: string;
   };
   isOpen: boolean;
   onClose: () => void;
@@ -59,6 +59,7 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
     provider_token_id: server.provider_token_id || "",
     webhook_url: server.webhook_url || "",
     status: server.status || "ativo",
+    api_key: server.api_key || "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showAddToken, setShowAddToken] = useState(false);
@@ -75,6 +76,7 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
       provider_token_id: server.provider_token_id || "",
       webhook_url: server.webhook_url || "",
       status: server.status || "ativo",
+      api_key: server.api_key || "",
     });
   }, [server]);
 
@@ -182,7 +184,7 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
             <span>Configurar Servidor</span>
           </DialogTitle>
           <DialogDescription>
-            Edite as informações do seu servidor ou exclua-o.
+            Edite as informações básicas do servidor. (Webhooks e cadastro de tokens não suportados por este modal. Use a tela inicial para criar servidor.)
           </DialogDescription>
         </DialogHeader>
 
@@ -222,7 +224,6 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
                   </div>
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label className="text-foreground">Provedor</Label>
                 <div className="relative">
@@ -241,56 +242,20 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
                 </div>
               </div>
 
-              {formData.provedor !== "outros" && (
-                <div className="space-y-2">
-                  <Label className="text-foreground">Token de API do provedor</Label>
-                  {fetchingTokens ? (
-                    <div className="text-sm text-muted-foreground">Carregando tokens...</div>
-                  ) : providerTokens.length > 0 && !showAddToken ? (
-                    <div className="flex flex-col gap-2">
-                      <select
-                        value={formData.provider_token_id}
-                        onChange={e => handleTokenSelect(e.target.value)}
-                        className="border rounded px-3 py-2"
-                        required
-                      >
-                        <option value="" disabled>Selecione um token</option>
-                        {providerTokens.map(token => (
-                          <option key={token.id} value={token.id}>
-                            {token.nickname || token.token.slice(0,5)+"..."+token.token.slice(-4)}
-                          </option>
-                        ))}
-                      </select>
-                      <Button type="button" size="sm" variant="secondary" onClick={handleNewToken}>
-                        Cadastrar novo token
-                      </Button>
-                    </div>
-                  ) : (
-                    <div>
-                      {/* Reutiliza o componente inline do cadastro normal */}
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={handleTokenAdded}
-                      >
-                        Atualizar lista de tokens
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-
               <div className="space-y-2">
-                <Label htmlFor="webhook_url" className="text-foreground">Webhook URL</Label>
-                <Input
-                  id="webhook_url"
-                  name="webhook_url"
-                  placeholder="https://sua-url-de-webhook.com"
-                  value={formData.webhook_url}
-                  onChange={handleInputChange}
-                  className="bg-background border-border"
-                />
+                <Label className="text-foreground">API Key</Label>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono break-all">{server.api_key || <em>API key não encontrada</em>}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(server.api_key);
+                      toast({ title: "API Key copiada!" });
+                    }}
+                  >Copiar</Button>
+                </div>
+                <div className="text-xs text-muted-foreground">Copie a chave para uso no agente de monitoramento.</div>
               </div>
 
               <div className="space-y-2">
