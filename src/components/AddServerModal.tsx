@@ -113,7 +113,6 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
           usuario_id: user.id,
           nome: formData.nome,
           ip: formData.ip,
-          webhook_url: formData.webhook_url,
           api_key: formData.api_key,
           provedor: formData.provedor,
           provider_token_id: formData.provider_token_id || null,
@@ -260,32 +259,18 @@ const AddServerModal: React.FC<AddServerModalProps> = ({ isOpen, onClose, onAddS
                   )}
                 </div>
               )}
-              
             </CardContent>
           </Card>
 
-          {/* Configuração de Webhook */}
+          {/* Apenas API Key agora */}
           <Card className="bg-card/50 border-border">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center space-x-2">
-                <Webhook className="h-5 w-5 text-purple-500" />
-                <span>Configuração de Webhook</span>
+                <Key className="h-5 w-5 text-purple-500" />
+                <span>API Key</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="webhook_url" className="text-foreground">URL do Webhook</Label>
-                <Input
-                  id="webhook_url"
-                  name="webhook_url"
-                  type="url"
-                  placeholder="https://seu-webhook.com/alerts"
-                  value={formData.webhook_url}
-                  onChange={handleInputChange}
-                  className="bg-background border-border"
-                  required
-                />
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="api_key" className="text-foreground">API Key</Label>
                 <div className="relative">

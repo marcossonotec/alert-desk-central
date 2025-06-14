@@ -19,11 +19,26 @@ const AddProviderTokenInline: React.FC<AddProviderTokenInlineProps> = ({ provide
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    // Obtém usuário autenticado para capturar o usuario_id
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: "Erro de autenticação",
+        description: "Você precisa estar logado para adicionar tokens.",
+        variant: "destructive"
+      });
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.from("provider_tokens").insert({
       provider,
       token,
-      nickname
+      nickname,
+      usuario_id: user.id
     });
+
     if (error) {
       toast({
         title: "Erro ao adicionar token",
