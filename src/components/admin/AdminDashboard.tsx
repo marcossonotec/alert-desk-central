@@ -14,8 +14,7 @@ import PaymentSettings from './PaymentSettings';
 import SubscriptionManagement from './SubscriptionManagement';
 import NotificationTestPanel from './NotificationTestPanel';
 import SimpleMonitoringGuide from './SimpleMonitoringGuide';
-import ProviderTokenManager from './ProviderTokenManager';
-import { Users, Server, Bell, CreditCard, UserCheck, Settings, BookOpen, Key } from 'lucide-react';
+import { Users, Server, Bell, CreditCard, UserCheck, Settings, BookOpen } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -80,7 +79,7 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8 bg-muted">
+        <TabsList className="grid w-full grid-cols-7 bg-muted">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Visão Geral
@@ -92,10 +91,6 @@ const AdminDashboard: React.FC = () => {
           <TabsTrigger value="servers" className="flex items-center gap-2">
             <Server className="h-4 w-4" />
             Servidores
-          </TabsTrigger>
-          <TabsTrigger value="tokens" className="flex items-center gap-2">
-            <Key className="h-4 w-4" />
-            Tokens
           </TabsTrigger>
           <TabsTrigger value="alerts" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
@@ -169,10 +164,6 @@ const AdminDashboard: React.FC = () => {
 
         <TabsContent value="servers">
           <ServerManagement />
-        </TabsContent>
-
-        <TabsContent value="tokens">
-          <ProviderTokenManager />
         </TabsContent>
 
         <TabsContent value="alerts">
