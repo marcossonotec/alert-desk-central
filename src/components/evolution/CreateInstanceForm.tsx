@@ -64,7 +64,9 @@ const CreateInstanceForm: React.FC<CreateInstanceFormProps> = ({
   const getMaxInstances = () => {
     if (!userPlan) return 0;
     const recursos = userPlan.recursos || {};
-    return recursos.max_whatsapp_instances || 0;
+    const maxInstances = recursos.max_whatsapp_instances;
+    console.log('Max instances from plan:', maxInstances, 'Plan:', userPlan.nome);
+    return maxInstances || 0;
   };
 
   const canCreateInstance = () => {

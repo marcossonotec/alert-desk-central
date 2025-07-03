@@ -36,6 +36,8 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
   onClose,
   onUpdate,
 }) => {
+  console.log('ServerConfigModal render:', { server, isOpen });
+  
   const {
     formData,
     isLoading,
@@ -47,6 +49,11 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
     handleSubmit,
     handleDelete,
   } = useServerConfigForm(server, onUpdate, onClose);
+
+  if (!server || !server.id) {
+    console.error('ServerConfigModal: servidor inválido', server);
+    return null;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

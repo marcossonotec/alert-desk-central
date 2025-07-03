@@ -29,10 +29,10 @@ export async function processAlert(
   if (!profile) {
     console.log('👤 Buscando perfil do usuário:', alerta.usuario_id);
     
-    // Buscar perfil do usuário com email de notificações
+    // Buscar perfil do usuário com email de notificações e todos os dados
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select('id, nome_completo, email, email_notificacoes, whatsapp, empresa')
+      .select('id, nome_completo, email, email_notificacoes, whatsapp, empresa, telefone')
       .eq('id', alerta.usuario_id)
       .single();
 

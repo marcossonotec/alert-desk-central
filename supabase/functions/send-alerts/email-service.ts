@@ -107,7 +107,13 @@ export async function sendEmailNotification(
         ip_servidor: ipServidor,
         valor_atual: valor_atual,
         limite: limite,
-        data_hora: dataHora
+        data_hora: dataHora,
+        // Incluir dados do usuário
+        nome: profile.nome_completo || 'Usuário',
+        empresa: profile.empresa || 'N/A',
+        telefone: profile.telefone || 'N/A',
+        whatsapp: profile.whatsapp || 'N/A',
+        email: profile.email || 'N/A'
       });
     } else {
       console.log('📝 Usando template padrão de email');

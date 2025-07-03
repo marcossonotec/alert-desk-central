@@ -73,21 +73,32 @@ export const useServerConfigForm = (server: Server, onUpdate: () => void, onClos
     setIsLoading(true);
 
     try {
+      console.log('Atualizando servidor:', { formData, serverId: server.id });
+      
+      const updateData = {
+        nome: formData.nome,
+        ip: formData.ip,
+        provedor: formData.provedor,
+        provider_token_id: formData.provedor !== "outros" ? (formData.provider_token_id || null) : null,
+        webhook_url: formData.webhook_url || null,
+        status: formData.status,
+        data_atualizacao: new Date().toISOString()
+      };
+
+      console.log('Dados para atualização:', updateData);
+
       const { error } = await supabase
         .from('servidores')
-        .update({
-          nome: formData.nome,
-          ip: formData.ip,
-          provedor: formData.provedor,
-          provider_token_id: formData.provedor !== "outros" ? (formData.provider_token_id || null) : null,
-          webhook_url: formData.webhook_url || null,
-          status: formData.status,
-          data_atualizacao: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', server.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro do Supabase:', error);
+        throw error;
+      }
 
+      console.log('Servidor atualizado com sucesso');
+      
       toast({
         title: "Servidor atualizado",
         description: "As configurações do servidor foram salvas com sucesso.",
@@ -99,7 +110,7 @@ export const useServerConfigForm = (server: Server, onUpdate: () => void, onClos
       console.error('Erro ao atualizar servidor:', error);
       toast({
         title: "Erro ao atualizar servidor",
-        description: "Não foi possível salvar as alterações.",
+        description: error.message || "Não foi possível salvar as alterações.",
         variant: "destructive"
       });
     } finally {
