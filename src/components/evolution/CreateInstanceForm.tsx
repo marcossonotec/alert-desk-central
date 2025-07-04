@@ -33,45 +33,82 @@ const CreateInstanceForm: React.FC<CreateInstanceFormProps> = ({
     if (!user) return;
 
     try {
+      console.log('CreateInstanceForm: Loading user data for user:', user.id);
+      
       // Carregar perfil do usuário
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('plano_ativo')
         .eq('id', user.id)
         .single();
 
+      if (profileError) {
+        console.error('CreateInstanceForm: Error loading profile:', profileError);
+        throw profileError;
+      }
+
+      console.log('CreateInstanceForm: Profile loaded:', profile);
+
       // Carregar dados do plano
-      const { data: plano } = await supabase
+      const { data: plano, error: planoError } = await supabase
         .from('planos_assinatura')
         .select('*')
         .eq('nome', profile?.plano_ativo || 'free')
         .single();
 
+      if (planoError) {
+        console.error('CreateInstanceForm: Error loading plan:', planoError);
+        throw planoError;
+      }
+
+      console.log('CreateInstanceForm: Plan loaded:', plano);
       setUserPlan(plano);
 
       // Contar instâncias existentes
-      const { data: instances } = await supabase
+      const { data: instances, error: instancesError } = await supabase
         .from('evolution_instances')
         .select('id')
         .eq('usuario_id', user.id);
 
+      if (instancesError) {
+        console.error('CreateInstanceForm: Error loading instances:', instancesError);
+        throw instancesError;
+      }
+
+      console.log('CreateInstanceForm: Instances loaded:', instances?.length || 0);
       setInstanceCount(instances?.length || 0);
     } catch (error) {
-      console.error('Erro ao carregar dados do usuário:', error);
+      console.error('CreateInstanceForm: Error loading user data:', error);
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar informações do plano.",
+        variant: "destructive"
+      });
     }
   };
 
   const getMaxInstances = () => {
-    if (!userPlan) return 0;
+    if (!userPlan) {
+      console.log('CreateInstanceForm: No user plan loaded');
+      return 0;
+    }
     const recursos = userPlan.recursos || {};
     const maxInstances = recursos.max_whatsapp_instances;
-    console.log('Max instances from plan:', maxInstances, 'Plan:', userPlan.nome);
-    return maxInstances || 0;
+    console.log('CreateInstanceForm: Max instances from plan:', maxInstances, 'Plan:', userPlan.nome, 'Recursos:', recursos);
+    
+    // Handle -1 as unlimited, 0 as none allowed, any positive number as limit
+    if (maxInstances === -1) return -1; // Unlimited  
+    if (maxInstances === 0) return 0;   // None allowed
+    return maxInstances || 0;           // Default to 0 if undefined/null
   };
 
   const canCreateInstance = () => {
     const maxInstances = getMaxInstances();
-    return maxInstances === -1 || instanceCount < maxInstances;
+    console.log('CreateInstanceForm: Can create instance check - maxInstances:', maxInstances, 'currentCount:', instanceCount);
+    
+    if (maxInstances === -1) return true; // Unlimited plan
+    if (maxInstances === 0) return false; // No instances allowed
+    return instanceCount < maxInstances;   // Check limit
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

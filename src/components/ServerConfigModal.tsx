@@ -13,6 +13,7 @@ import { useServerConfigForm } from './ServerConfigModal/useServerConfigForm';
 import ServerBasicInfo from './ServerConfigModal/ServerBasicInfo';
 import ServerApiKey from './ServerConfigModal/ServerApiKey';
 import ProviderTokenSection from './ServerConfigModal/ProviderTokenSection';
+import ErrorBoundary from './ErrorBoundary';
 
 interface ServerConfigModalProps {
   server: {
@@ -68,51 +69,59 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <ServerBasicInfo
-            formData={formData}
-            onInputChange={handleInputChange}
-            onProviderChange={handleProviderChange}
-            onStatusChange={handleStatusChange}
-          />
+        <ErrorBoundary>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <ErrorBoundary>
+              <ServerBasicInfo
+                formData={formData}
+                onInputChange={handleInputChange}
+                onProviderChange={handleProviderChange}
+                onStatusChange={handleStatusChange}
+              />
+            </ErrorBoundary>
 
-          <ServerApiKey apiKey={server.api_key} />
+            <ErrorBoundary>
+              <ServerApiKey apiKey={server.api_key} />
+            </ErrorBoundary>
 
-          <ProviderTokenSection
-            provedor={formData.provedor}
-            selectedTokenId={formData.provider_token_id}
-            onTokenSelect={handleTokenSelect}
-          />
+            <ErrorBoundary>
+              <ProviderTokenSection
+                provedor={formData.provedor}
+                selectedTokenId={formData.provider_token_id}
+                onTokenSelect={handleTokenSelect}
+              />
+            </ErrorBoundary>
 
-          <div className="flex justify-between gap-4 pt-4">
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="flex-none"
-            >
-              {deleting ? "Excluindo..." : "Excluir Servidor"}
-            </Button>
-            <div className="flex gap-3 justify-end flex-1">
+            <div className="flex justify-between gap-4 pt-4">
               <Button
                 type="button"
-                variant="outline"
-                onClick={onClose}
-                className="border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-none"
               >
-                Cancelar
+                {deleting ? "Excluindo..." : "Excluir Servidor"}
               </Button>
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                {isLoading ? 'Salvando...' : 'Salvar Alterações'}
-              </Button>
+              <div className="flex gap-3 justify-end flex-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  className="border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  {isLoading ? 'Salvando...' : 'Salvar Alterações'}
+                </Button>
+              </div>
             </div>
-          </div>
-        </form>
+          </form>
+        </ErrorBoundary>
       </DialogContent>
     </Dialog>
   );

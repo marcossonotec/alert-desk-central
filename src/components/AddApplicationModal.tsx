@@ -51,16 +51,23 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
 
   const loadApplicationTypes = async () => {
     try {
+      console.log('AddApplicationModal: Loading application types...');
+      
       const { data, error } = await supabase
         .from('tipos_aplicacao')
         .select('*')
         .eq('ativo', true)
         .order('preco_mensal');
 
-      if (error) throw error;
+      if (error) {
+        console.error('AddApplicationModal: Error loading types:', error);
+        throw error;
+      }
+      
+      console.log('AddApplicationModal: Application types loaded:', data);
       setApplicationTypes(data || []);
     } catch (error: any) {
-      console.error('Erro ao carregar tipos de aplicação:', error);
+      console.error('AddApplicationModal: Failed to load application types:', error);
       toast({
         title: "Erro",
         description: "Não foi possível carregar os tipos de aplicação.",
@@ -173,7 +180,7 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
               <SelectTrigger className="bg-background border-border">
                 <SelectValue placeholder="Selecione um servidor" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-popover border-border z-50">
                 {servers.map((server) => (
                   <SelectItem key={server.id} value={server.id}>
                     <div className="flex items-center space-x-2">
@@ -193,15 +200,21 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
               <SelectTrigger className="bg-background border-border">
                 <SelectValue placeholder="Selecione o tipo de aplicação" />
               </SelectTrigger>
-              <SelectContent>
-                {applicationTypes.map((type) => (
-                  <SelectItem key={type.id} value={type.id}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>{type.descricao}</span>
-                      <Badge variant="secondary">R$ {type.preco_mensal}/mês</Badge>
-                    </div>
+              <SelectContent className="bg-popover border-border z-50">
+                {applicationTypes.length === 0 ? (
+                  <SelectItem value="no-types" disabled>
+                    Nenhum tipo de aplicação disponível
                   </SelectItem>
-                ))}
+                ) : (
+                  applicationTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      <div className="flex items-center justify-between w-full">
+                        <span>{type.descricao}</span>
+                        <Badge variant="secondary">R$ {type.preco_mensal}/mês</Badge>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
