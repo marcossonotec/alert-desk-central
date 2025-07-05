@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Trash2, RefreshCw, Settings } from 'lucide-react';
+import { MessageSquare, Trash2, RefreshCw, Settings, QrCode } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import QRCodeDisplay from './QRCodeDisplay';
 
 interface InstanceListProps {
   onUpdate?: () => void;
@@ -19,6 +20,8 @@ const InstanceList: React.FC<InstanceListProps> = ({
 }) => {
   const [instances, setInstances] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showQRCode, setShowQRCode] = useState<string | null>(null);
+  const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -119,6 +122,41 @@ const InstanceList: React.FC<InstanceListProps> = ({
     }
   };
 
+  const handleShowQRCode = async (instanceId: string) => {
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase.functions.invoke('evolution-api', {
+        body: {
+          action: 'get-qr',
+          instance_id: instanceId
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.success && data.qr_code) {
+        setQrCodeData(data.qr_code);
+        setShowQRCode(instanceId);
+      } else {
+        toast({
+          title: "QR Code não disponível",
+          description: "QR Code ainda não está pronto. Tente novamente em alguns segundos.",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar QR Code:', error);
+      toast({
+        title: "Erro ao buscar QR Code",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'connected':
@@ -186,6 +224,16 @@ const InstanceList: React.FC<InstanceListProps> = ({
               </div>
               <div className="flex space-x-2">
                 <Button
+                  onClick={() => handleShowQRCode(instance.id)}
+                  disabled={isLoading}
+                  variant="outline"
+                  size="sm"
+                  title="Mostrar QR Code"
+                  className="text-green-600 hover:text-green-700"
+                >
+                  <QrCode className="h-4 w-4" />
+                </Button>
+                <Button
                   onClick={() => onEditMessages(instance.id, instance.instance_name)}
                   disabled={isLoading || instance.status !== 'connected'}
                   variant="outline"
@@ -218,6 +266,30 @@ const InstanceList: React.FC<InstanceListProps> = ({
           </CardContent>
         </Card>
       ))}
+      
+      {showQRCode && qrCodeData && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card p-6 rounded-lg max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">QR Code - WhatsApp</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowQRCode(null);
+                  setQrCodeData(null);
+                }}
+              >
+                Fechar
+              </Button>
+            </div>
+            <QRCodeDisplay 
+              qrCode={qrCodeData}
+              instanceName={instances.find(i => i.id === showQRCode)?.instance_name || ''}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

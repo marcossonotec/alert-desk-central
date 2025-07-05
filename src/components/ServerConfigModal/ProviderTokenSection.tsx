@@ -121,12 +121,12 @@ const ProviderTokenSection: React.FC<ProviderTokenSectionProps> = ({
             {tokens.length > 0 && (
               <div className="space-y-2">
                 <Label>Selecionar token existente</Label>
-                  <Select value={selectedTokenId || ""} onValueChange={onTokenSelect}>
+                  <Select value={selectedTokenId || "none"} onValueChange={(value) => onTokenSelect(value === "none" ? undefined : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um token..." />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border z-50">
-                      <SelectItem value="">Nenhum token selecionado</SelectItem>
+                      <SelectItem value="none">Nenhum token selecionado</SelectItem>
                       {tokens.map((token) => (
                         <SelectItem key={token.id} value={token.id}>
                           {token.nickname} ({token.token.substring(0, 8)}...)

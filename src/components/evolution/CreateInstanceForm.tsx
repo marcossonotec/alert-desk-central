@@ -141,12 +141,30 @@ const CreateInstanceForm: React.FC<CreateInstanceFormProps> = ({
       if (data?.success) {
         toast({
           title: "Instância criada",
-          description: "Instância WhatsApp criada com sucesso!",
+          description: "Instância WhatsApp criada com sucesso! Buscando QR Code...",
         });
 
         setInstanceName('');
         onInstanceCreated();
         await loadUserData(); // Recarregar dados
+        
+        // Buscar QR Code após criar instância
+        setTimeout(async () => {
+          try {
+            const qrResponse = await supabase.functions.invoke('evolution-api', {
+              body: {
+                action: 'get-qr',
+                instance_id: data.instance.id
+              }
+            });
+            
+            if (qrResponse.data?.success) {
+              console.log('QR Code obtido:', qrResponse.data.qr_code);
+            }
+          } catch (error) {
+            console.log('Erro ao buscar QR Code inicial:', error);
+          }
+        }, 2000);
       } else {
         throw new Error(data?.error || 'Erro ao criar instância');
       }

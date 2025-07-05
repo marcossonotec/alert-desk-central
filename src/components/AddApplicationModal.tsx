@@ -200,7 +200,7 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
               <SelectTrigger className="bg-background border-border">
                 <SelectValue placeholder="Selecione o tipo de aplicação" />
               </SelectTrigger>
-              <SelectContent className="bg-popover border-border z-50">
+              <SelectContent className="bg-popover border-border z-[60] max-h-[200px] overflow-y-auto">
                 {applicationTypes.length === 0 ? (
                   <SelectItem value="no-types" disabled>
                     Nenhum tipo de aplicação disponível
