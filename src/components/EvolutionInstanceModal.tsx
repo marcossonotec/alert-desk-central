@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CreateInstanceForm from './evolution/CreateInstanceForm';
-import InstanceList from './evolution/InstanceList';
+import EnhancedInstanceList from './evolution/EnhancedInstanceList';
 import WhatsAppMessageEditor from './WhatsAppMessageEditor';
 
 interface EvolutionInstanceModalProps {
@@ -78,7 +78,7 @@ const EvolutionInstanceModal: React.FC<EvolutionInstanceModalProps> = ({
             </TabsList>
             
             <TabsContent value="list" className="space-y-4">
-              <InstanceList 
+              <EnhancedInstanceList 
                 key={refreshKey}
                 onUpdate={handleInstanceUpdate}
                 onEditMessages={handleEditMessages}
