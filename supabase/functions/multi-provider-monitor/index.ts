@@ -29,6 +29,8 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    await logSystem(supabase, 'info', 'multi-provider-monitor', 'Iniciando coleta de métricas', {});
+
     // Busca todos servidores ativos com tokens de provedor
     const { data: servidores, error: servidoresError } = await supabase
       .from('servidores')
@@ -57,6 +59,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (servidoresError) {
       console.error('❌ Erro ao buscar servidores:', servidoresError);
+      await logSystem(supabase, 'error', 'multi-provider-monitor', 'Erro ao buscar servidores', { error: servidoresError });
       throw servidoresError;
     }
 
@@ -90,18 +93,45 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (metricasError) {
           console.error(`❌ Erro ao salvar métricas para ${servidor.nome}:`, metricasError);
+          await logSystem(supabase, 'error', 'multi-provider-monitor', 
+            `Erro ao salvar métricas para ${servidor.nome}`, 
+            { error: metricasError, servidor_id: servidor.id }
+          );
           errosProcessamento++;
         } else {
           console.log(`✅ Métricas salvas para ${servidor.nome} - Dados ${metricas.real ? 'REAIS' : 'SIMULADOS'}`);
+          await logSystem(supabase, 'info', 'multi-provider-monitor', 
+            `Métricas coletadas para ${servidor.nome}`, 
+            { 
+              servidor_id: servidor.id, 
+              provedor: servidor.provedor,
+              dados_reais: metricas.real,
+              cpu_usage: metricas.cpuUsage,
+              memoria_usage: metricas.memoriaUsage 
+            }
+          );
           sucessoProcessamento++;
         }
       } catch (err) {
         console.error(`❌ Erro ao processar servidor ${servidor.nome}:`, err);
+        await logSystem(supabase, 'error', 'multi-provider-monitor', 
+          `Erro ao processar servidor ${servidor.nome}`, 
+          { error: err.message, servidor_id: servidor.id }
+        );
         errosProcessamento++;
       }
     }
 
     console.log(`✅ Processamento concluído: ${sucessoProcessamento} sucessos, ${errosProcessamento} erros`);
+
+    await logSystem(supabase, 'info', 'multi-provider-monitor', 
+      'Coleta de métricas concluída', 
+      { 
+        servidores_processados: servidores?.length || 0,
+        sucessos: sucessoProcessamento,
+        erros: errosProcessamento
+      }
+    );
 
     return new Response(
       JSON.stringify({ 
@@ -119,6 +149,16 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     console.error('❌ ERRO CRÍTICO em multi-provider-monitor:', error);
+    
+    try {
+      const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      await logSystem(supabase, 'error', 'multi-provider-monitor', 
+        `Erro crítico: ${error.message}`, 
+        { stack: error.stack?.substring(0, 500) }
+      );
+    } catch (logError) {
+      console.error('❌ Erro ao registrar log:', logError);
+    }
     
     return new Response(
       JSON.stringify({ 
@@ -345,6 +385,22 @@ function gerarMetricasSimuladas(servidor: any): MetricsResult {
     uptime: uptimeString,
     real: false
   };
+}
+
+async function logSystem(supabase: any, level: string, service: string, message: string, metadata: any): Promise<void> {
+  try {
+    await supabase
+      .from('system_logs')
+      .insert({
+        level,
+        service,
+        message,
+        metadata,
+        timestamp: new Date().toISOString()
+      });
+  } catch (error) {
+    console.error('❌ Erro ao registrar log do sistema:', error);
+  }
 }
 
 serve(handler);

@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_cooldowns: {
+        Row: {
+          alerta_id: string
+          cooldown_minutes: number | null
+          created_at: string | null
+          id: string
+          last_sent: string | null
+          servidor_id: string | null
+          tipo_alerta: string
+        }
+        Insert: {
+          alerta_id: string
+          cooldown_minutes?: number | null
+          created_at?: string | null
+          id?: string
+          last_sent?: string | null
+          servidor_id?: string | null
+          tipo_alerta: string
+        }
+        Update: {
+          alerta_id?: string
+          cooldown_minutes?: number | null
+          created_at?: string | null
+          id?: string
+          last_sent?: string | null
+          servidor_id?: string | null
+          tipo_alerta?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_cooldowns_alerta_id_fkey"
+            columns: ["alerta_id"]
+            isOneToOne: false
+            referencedRelation: "alertas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_cooldowns_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alertas: {
         Row: {
           ativo: boolean | null
@@ -716,6 +761,33 @@ export type Database = {
           },
         ]
       }
+      system_logs: {
+        Row: {
+          id: string
+          level: string
+          message: string
+          metadata: Json | null
+          service: string
+          timestamp: string | null
+        }
+        Insert: {
+          id?: string
+          level?: string
+          message: string
+          metadata?: Json | null
+          service: string
+          timestamp?: string | null
+        }
+        Update: {
+          id?: string
+          level?: string
+          message?: string
+          metadata?: Json | null
+          service?: string
+          timestamp?: string | null
+        }
+        Relationships: []
+      }
       tipos_aplicacao: {
         Row: {
           ativo: boolean
@@ -772,6 +844,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       is_admin: {
         Args: { user_id_param?: string }
         Returns: boolean

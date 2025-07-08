@@ -2,6 +2,8 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Server, Activity, AlertTriangle, TrendingUp } from 'lucide-react';
+import { useRealtimeMetrics } from '@/hooks/useRealtimeMetrics';
+import RealtimeStatus from './RealtimeStatus';
 
 interface DashboardStatsProps {
   servers: any[];
@@ -16,10 +18,16 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
   alerts,
   getLatestMetricForServer,
 }) => {
+  const { 
+    metrics: realtimeMetrics, 
+    alerts: realtimeAlerts, 
+    isConnected 
+  } = useRealtimeMetrics();
   const getServerStats = () => {
     const total = servers.length;
     const online = servers.filter(s => s.status === 'ativo').length;
-    const alerts_count = alerts.length;
+    // Usar alertas realtime se disponíveis
+    const alerts_count = realtimeAlerts.length > 0 ? realtimeAlerts.filter(a => a.ativo).length : alerts.length;
     return { total, online, alerts_count };
   };
 
@@ -44,8 +52,18 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
   const stats = getServerStats();
   const avgMetrics = getAverageMetrics();
 
+  const lastMetric = realtimeMetrics[0];
+  const lastUpdate = lastMetric?.timestamp;
+
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Status Realtime */}
+      <RealtimeStatus 
+        isConnected={isConnected}
+        lastUpdate={lastUpdate}
+        metricsCount={realtimeMetrics.length}
+        alertsCount={realtimeAlerts.length}
+      />
       <Card className="bg-card border-border">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
@@ -76,6 +94,9 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
             <div>
               <p className="text-sm font-medium text-muted-foreground">Alertas</p>
               <p className="text-2xl font-bold text-orange-600">{stats.alerts_count}</p>
+              {isConnected && (
+                <p className="text-xs text-muted-foreground">🔄 Realtime</p>
+              )}
             </div>
             <AlertTriangle className="h-8 w-8 text-orange-600" />
           </div>
