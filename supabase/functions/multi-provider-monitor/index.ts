@@ -42,16 +42,10 @@ const handler = async (req: Request): Promise<Response> => {
         provedor,
         provider_token_id,
         data_criacao,
-        provider_tokens!inner(
+        provider_tokens(
           id,
           provider,
           token
-        ),
-        profiles!inner(
-          id,
-          email,
-          email_notificacoes,
-          nome_completo
         )
       `)
       .eq('status', 'ativo')
@@ -72,6 +66,12 @@ const handler = async (req: Request): Promise<Response> => {
     for (const servidor of servidores || []) {
       try {
         console.log(`🔄 Processando servidor: ${servidor.nome} (${servidor.provedor})`);
+        
+        // Verificar se o servidor tem token válido
+        if (!servidor.provider_tokens) {
+          console.log(`⚠️ Servidor ${servidor.nome} não tem token de provedor configurado`);
+          continue;
+        }
         
         const metricas = await coletarMetricas(servidor);
         

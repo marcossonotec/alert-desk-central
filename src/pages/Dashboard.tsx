@@ -8,7 +8,7 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardStats from '@/components/dashboard/DashboardStats';
 import ServersList from '@/components/dashboard/ServersList';
 import ActiveAlerts from '@/components/dashboard/ActiveAlerts';
-import DashboardSidebar from '@/components/dashboard/DashboardSidebar';
+import OptimizedSidebar from '@/components/dashboard/OptimizedSidebar';
 import AddServerModal from '@/components/AddServerModal';
 import EvolutionInstanceModal from '@/components/EvolutionInstanceModal';
 import ApplicationsList from '@/components/ApplicationsList';
@@ -161,7 +161,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <DashboardSidebar 
+        <OptimizedSidebar 
           userProfile={userProfile}
           servers={servers}
           onOpenWhatsApp={() => setShowWhatsAppModal(true)}
