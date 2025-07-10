@@ -35,19 +35,45 @@ const Dashboard = () => {
       setIsLoading(true);
       
       const { data: { user: currentUser } } = await supabase.auth.getUser();
+      console.log('Dashboard - Usuário atual:', currentUser?.email);
       setUser(currentUser);
 
-      if (!currentUser) return;
+      if (!currentUser) {
+        console.log('Dashboard - Nenhum usuário encontrado');
+        setIsLoading(false);
+        return;
+      }
 
       // Buscar perfil do usuário
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
-        .single();
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Erro ao buscar perfil:', profileError);
+      }
 
       if (profileData) {
+        console.log('Dashboard - Perfil carregado:', profileData.email);
         setUserProfile(profileData);
+      } else {
+        console.log('Dashboard - Nenhum perfil encontrado, criando perfil básico');
+        // Criar perfil básico se não existir
+        const { data: newProfile } = await supabase
+          .from('profiles')
+          .insert({
+            id: currentUser.id,
+            email: currentUser.email || '',
+            nome_completo: currentUser.user_metadata?.full_name || null
+          })
+          .select()
+          .single();
+        
+        if (newProfile) {
+          setUserProfile(newProfile);
+        }
       }
 
       const { data: serversData, error: serversError } = await supabase
@@ -74,16 +100,27 @@ const Dashboard = () => {
 
       if (alertsError) throw alertsError;
 
+      console.log('Dashboard - Dados carregados:', {
+        servers: serversData?.length || 0,
+        metrics: metricsData?.length || 0,
+        alerts: alertsData?.length || 0
+      });
+
       setServers(serversData || []);
       setMetrics(metricsData || []);
       setAlerts(alertsData || []);
     } catch (error: any) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('Erro ao carregar dados do dashboard:', error);
       toast({
         title: "Erro ao carregar dados",
-        description: "Não foi possível carregar os dados do dashboard.",
+        description: "Não foi possível carregar os dados do dashboard. Tentando novamente...",
         variant: "destructive"
       });
+      
+      // Retry após 2 segundos
+      setTimeout(() => {
+        loadData();
+      }, 2000);
     } finally {
       setIsLoading(false);
     }

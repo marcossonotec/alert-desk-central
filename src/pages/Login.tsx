@@ -34,10 +34,13 @@ const Login = () => {
 
       toast({
         title: "Login realizado com sucesso!",
-        description: "Você será redirecionado para o dashboard.",
+        description: "Redirecionando para o dashboard...",
       });
 
-      navigate('/dashboard');
+      // Aguardar um pouco para garantir que o estado de auth seja atualizado
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 500);
     } catch (error: any) {
       console.error('Erro no login:', error);
       
