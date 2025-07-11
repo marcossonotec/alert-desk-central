@@ -15,22 +15,27 @@ import {
 } from 'lucide-react';
 import UpgradeModal from '@/components/UpgradeModal';
 import { useNavigate } from 'react-router-dom';
-import { useRealtimeMetrics } from '@/hooks/useRealtimeMetrics';
+
 
 interface OptimizedSidebarProps {
   userProfile: any;
   servers: any[];
   onOpenWhatsApp: () => void;
+  realtimeMetrics: any[];
+  realtimeAlerts: any[];
+  isRealtimeConnected: boolean;
 }
 
 const OptimizedSidebar: React.FC<OptimizedSidebarProps> = ({
   userProfile,
   servers,
   onOpenWhatsApp,
+  realtimeMetrics: metrics,
+  realtimeAlerts: alerts,
+  isRealtimeConnected,
 }) => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const navigate = useNavigate();
-  const { metrics, alerts } = useRealtimeMetrics();
 
   const getPlanInfo = (plan: string) => {
     switch (plan) {

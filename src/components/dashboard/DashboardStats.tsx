@@ -2,7 +2,6 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Server, Activity, AlertTriangle, TrendingUp } from 'lucide-react';
-import { useRealtimeMetrics } from '@/hooks/useRealtimeMetrics';
 import RealtimeStatus from './RealtimeStatus';
 
 interface DashboardStatsProps {
@@ -10,6 +9,9 @@ interface DashboardStatsProps {
   metrics: any[];
   alerts: any[];
   getLatestMetricForServer: (serverId: string) => any;
+  realtimeMetrics: any[];
+  realtimeAlerts: any[];
+  isRealtimeConnected: boolean;
 }
 
 const DashboardStats: React.FC<DashboardStatsProps> = ({
@@ -17,12 +19,10 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
   metrics,
   alerts,
   getLatestMetricForServer,
+  realtimeMetrics,
+  realtimeAlerts,
+  isRealtimeConnected,
 }) => {
-  const { 
-    metrics: realtimeMetrics, 
-    alerts: realtimeAlerts, 
-    isConnected 
-  } = useRealtimeMetrics();
   const getServerStats = () => {
     const total = servers.length;
     const online = servers.filter(s => s.status === 'ativo').length;
@@ -59,7 +59,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
       {/* Status Realtime */}
       <RealtimeStatus 
-        isConnected={isConnected}
+        isConnected={isRealtimeConnected}
         lastUpdate={lastUpdate}
         metricsCount={realtimeMetrics.length}
         alertsCount={realtimeAlerts.length}
@@ -94,9 +94,9 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
             <div>
               <p className="text-sm font-medium text-muted-foreground">Alertas</p>
               <p className="text-2xl font-bold text-orange-600">{stats.alerts_count}</p>
-              {isConnected && (
-                <p className="text-xs text-muted-foreground">🔄 Realtime</p>
-              )}
+               {isRealtimeConnected && (
+                 <p className="text-xs text-muted-foreground">🔄 Realtime</p>
+               )}
             </div>
             <AlertTriangle className="h-8 w-8 text-orange-600" />
           </div>

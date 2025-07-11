@@ -13,6 +13,7 @@ import AddServerModal from '@/components/AddServerModal';
 import EvolutionInstanceModal from '@/components/EvolutionInstanceModal';
 import ApplicationsList from '@/components/ApplicationsList';
 import ThemeToggle from '@/components/ThemeToggle';
+import { useRealtimeMetrics } from '@/hooks/useRealtimeMetrics';
 
 const Dashboard = () => {
   const [servers, setServers] = useState<any[]>([]);
@@ -25,6 +26,14 @@ const Dashboard = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  
+  // Centralized realtime metrics - SINGLE INSTANCE
+  const { 
+    metrics: realtimeMetrics, 
+    alerts: realtimeAlerts, 
+    notifications: realtimeNotifications,
+    isConnected: realtimeConnected
+  } = useRealtimeMetrics();
 
   useEffect(() => {
     loadData();
@@ -178,6 +187,9 @@ const Dashboard = () => {
               metrics={metrics}
               alerts={alerts}
               getLatestMetricForServer={getLatestMetricForServer}
+              realtimeMetrics={realtimeMetrics}
+              realtimeAlerts={realtimeAlerts}
+              isRealtimeConnected={realtimeConnected}
             />
 
             <ServersList 
@@ -202,6 +214,9 @@ const Dashboard = () => {
           userProfile={userProfile}
           servers={servers}
           onOpenWhatsApp={() => setShowWhatsAppModal(true)}
+          realtimeMetrics={realtimeMetrics}
+          realtimeAlerts={realtimeAlerts}
+          isRealtimeConnected={realtimeConnected}
         />
 
         <AddServerModal
